@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment and secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# Logs and debug
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Vite
+*.local
+
+# Optional: uncomment if you want to keep design_process out of the repo
+# design_process/
