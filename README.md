@@ -2,7 +2,7 @@
 
 Web-based athlete dating app (CS4116 Software Development Project).
 
-## Setup
+## Frontend Setup
 
 1. **Clone the repo**
    ```bash
@@ -31,5 +31,5 @@ Web-based athlete dating app (CS4116 Software Development Project).
 ## Project structure
 
 - `src/app/` — React app (pages, components, routes)
-- `design_process/` — design docs, ER diagram, proposed DB schema
+- `design_process/` — website pages, ER diagram, proposed DB schema
 - `public/` — static assets (e.g. images)
