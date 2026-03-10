@@ -1,8 +1,6 @@
-# SportSync
+# SportSync (Frontend)
 
-Web-based athlete dating app (CS4116 Software Development Project).
-
-## Frontend Setup
+## Setup
 
 1. **Clone the repo**
    ```bash
