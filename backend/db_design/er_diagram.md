@@ -17,15 +17,31 @@ erDiagram
         TIMESTAMP created_at
     }
 
+    Genders {
+        INT gender_id PK
+        VARCHAR gender_name
+    }
+
+    Countries {
+        INT country_id PK
+        CHAR country_code UK
+        VARCHAR country_name
+    }
+
+    Cities {
+        INT city_id PK
+        INT country_id FK
+        VARCHAR city_name
+    }
+
     Profiles {
-        INT user_id PK, FK
+        INT user_id PK_FK
         VARCHAR first_name
         VARCHAR last_name
         DATE birth_date
-        VARCHAR gender
+        INT gender_id FK
         INT height_cm
-        VARCHAR city
-        VARCHAR country
+        INT city_id FK
         TEXT bio
     }
 
@@ -42,26 +58,43 @@ erDiagram
         VARCHAR sport_name
     }
 
+    SkillLevels {
+        INT skill_level_id PK
+        VARCHAR level_name
+        INT sort_order
+    }
+
+    TrainingFrequencies {
+        INT frequency_id PK
+        VARCHAR frequency_label
+        INT sort_order
+    }
+
     UserSports {
-        INT user_id PK, FK
-        INT sport_id PK, FK
-        VARCHAR skill_level
+        INT user_id PK_FK
+        INT sport_id PK_FK
+        INT skill_level_id FK
         INT years_experience
-        VARCHAR training_frequency
+        INT frequency_id FK
+    }
+
+    RelationshipGoals {
+        INT goal_id PK
+        VARCHAR goal_name
     }
 
     Preferences {
-        INT user_id PK, FK
-        VARCHAR preferred_gender
+        INT user_id PK_FK
+        INT gender_id FK
         INT min_age
         INT max_age
         INT max_distance_km
-        VARCHAR relationship_goal
+        INT goal_id FK
     }
 
     PreferenceSports {
-        INT user_id PK, FK
-        INT sport_id PK, FK
+        INT user_id PK_FK
+        INT sport_id PK_FK
     }
 
     Likes {
@@ -94,11 +127,18 @@ erDiagram
         TIMESTAMP read_at
     }
 
+    NotificationTypes {
+        INT type_id PK
+        VARCHAR type_name
+    }
+
     Notifications {
         INT notification_id PK
         INT user_id FK
-        VARCHAR notification_type
-        INT reference_id
+        INT type_id FK
+        INT match_id FK_NULL
+        INT message_id FK_NULL
+        INT complaint_id FK_NULL
         VARCHAR message
         BOOLEAN is_read
         TIMESTAMP created_at
@@ -119,16 +159,27 @@ erDiagram
         TIMESTAMP created_at
     }
 
+    ComplaintTypes {
+        INT type_id PK
+        VARCHAR type_name
+    }
+
+    ComplaintStatuses {
+        INT status_id PK
+        VARCHAR status_name
+    }
+
     Complaints {
         INT complaint_id PK
         INT reporter_id FK
         INT reported_id FK
-        VARCHAR complaint_type
+        INT type_id FK
         TEXT description
-        VARCHAR status
+        INT status_id FK
         TIMESTAMP created_at
     }
 
+    %% Core user relationships
     Users ||--|| Profiles : "has"
     Users ||--o{ UserPhotos : "uploads"
     Users ||--|| Preferences : "sets"
@@ -143,8 +194,35 @@ erDiagram
     Users ||--o{ BlockedUsers : "blocker / blocked"
     Users ||--o{ Complaints : "reporter / reported"
 
+    %% Location lookup relationships
+    Countries ||--o{ Cities : "contains"
+    Cities ||--o{ Profiles : "located in"
+
+    %% Gender lookup relationships
+    Genders ||--o{ Profiles : "gender"
+    Genders ||--o{ Preferences : "preferred gender"
+
+    %% Sport relationships
     Sports ||--o{ UserSports : "sport"
     Sports ||--o{ PreferenceSports : "sport"
 
+    %% Sport attribute lookup relationships
+    SkillLevels ||--o{ UserSports : "skill level"
+    TrainingFrequencies ||--o{ UserSports : "frequency"
+
+    %% Preference lookup relationships
+    RelationshipGoals ||--o{ Preferences : "goal"
+
+    %% Match and messaging
     Matches ||--o{ Messages : "contains"
+
+    %% Complaint lookup relationships
+    ComplaintTypes ||--o{ Complaints : "type"
+    ComplaintStatuses ||--o{ Complaints : "status"
+
+    %% Notification lookup and typed references
+    NotificationTypes ||--o{ Notifications : "type"
+    Matches ||--o{ Notifications : "references"
+    Messages ||--o{ Notifications : "references"
+    Complaints ||--o{ Notifications : "references"
 ```

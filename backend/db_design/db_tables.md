@@ -1,5 +1,7 @@
 # Athlete Dating App – Database Schema
 
+---
+
 ## Table 1: Users
 
 This table stores authentication and account information.
@@ -17,7 +19,50 @@ This table stores authentication and account information.
 
 ---
 
-## Table 2: Profiles
+## Table 2: Genders *(lookup)*
+
+This table stores the valid gender options used across Profiles and Preferences.
+
+| Field       | Type         | Key     |
+| ----------- | ------------ | ------- |
+| gender_id   | INT          | Primary |
+| gender_name | VARCHAR(50)  |         |
+
+Example values: Male, Female, Non-binary, Prefer not to say
+
+---
+
+## Table 3: Countries *(lookup)*
+
+This table stores country data.
+
+| Field        | Type        | Key     |
+| ------------ | ----------- | ------- |
+| country_id   | INT         | Primary |
+| country_code | CHAR(2)     | Unique  |
+| country_name | VARCHAR(100)|         |
+
+Example values: (IE, Ireland), (US, United States), (GB, United Kingdom)
+
+---
+
+## Table 4: Cities *(lookup)*
+
+This table stores cities linked to countries.
+
+| Field      | Type         | Key     |
+| ---------- | ------------ | ------- |
+| city_id    | INT          | Primary |
+| country_id | INT          | Foreign |
+| city_name  | VARCHAR(100) |         |
+
+Foreign Keys:
+
+* `country_id → countries.country_id`
+
+---
+
+## Table 5: Profiles
 
 This table stores descriptive information about the user.
 
@@ -27,19 +72,22 @@ This table stores descriptive information about the user.
 | first_name | VARCHAR(100) |                  |
 | last_name  | VARCHAR(100) |                  |
 | birth_date | DATE         |                  |
-| gender     | VARCHAR(20)  |                  |
+| gender_id  | INT          | Foreign          |
 | height_cm  | INT          |                  |
-| city       | VARCHAR(100) |                  |
-| country    | VARCHAR(100) |                  |
+| city_id    | INT          | Foreign          |
 | bio        | TEXT         |                  |
 
 Foreign Keys:
 
 * `user_id → users.user_id`
+* `gender_id → genders.gender_id`
+* `city_id → cities.city_id`
+
+> Country is derived via `cities.country_id` — no redundant column needed.
 
 ---
 
-## Table 3: User Photos
+## Table 6: User Photos
 
 This table stores profile photos for each user. Each user can upload multiple photos.
 
@@ -57,7 +105,7 @@ Foreign Keys:
 
 ---
 
-## Table 4: Sports
+## Table 7: Sports
 
 This table contains all sports supported by the platform.
 
@@ -66,27 +114,49 @@ This table contains all sports supported by the platform.
 | sport_id   | INT          | Primary |
 | sport_name | VARCHAR(100) |         |
 
-Example values:
-
-* Running
-* CrossFit
-* Cycling
-* Football
-* Tennis
+Example values: Running, CrossFit, Cycling, Football, Tennis
 
 ---
 
-## Table 5: User Sports
+## Table 8: Skill Levels *(lookup)*
+
+This table stores the valid skill level options for user sports.
+
+| Field          | Type        | Key     |
+| -------------- | ----------- | ------- |
+| skill_level_id | INT         | Primary |
+| level_name     | VARCHAR(50) |         |
+| sort_order     | INT         |         |
+
+Example values (in order): Beginner, Intermediate, Advanced, Professional
+
+---
+
+## Table 9: Training Frequencies *(lookup)*
+
+This table stores the valid training frequency options for user sports.
+
+| Field           | Type        | Key     |
+| --------------- | ----------- | ------- |
+| frequency_id    | INT         | Primary |
+| frequency_label | VARCHAR(50) |         |
+| sort_order      | INT         |         |
+
+Example values (in order): Rarely, 1–2x per week, 3–4x per week, 5+ per week, Daily
+
+---
+
+## Table 10: User Sports
 
 This table records which sports a user practices.
 
-| Field              | Type        | Key     |
-| ------------------ | ----------- | ------- |
-| user_id            | INT         | Foreign |
-| sport_id           | INT         | Foreign |
-| skill_level        | VARCHAR(50) |         |
-| years_experience   | INT         |         |
-| training_frequency | VARCHAR(50) |         |
+| Field          | Type | Key     |
+| -------------- | ---- | ------- |
+| user_id        | INT  | Foreign |
+| sport_id       | INT  | Foreign |
+| skill_level_id | INT  | Foreign |
+| years_experience | INT |        |
+| frequency_id   | INT  | Foreign |
 
 Primary Key:
 
@@ -96,29 +166,46 @@ Foreign Keys:
 
 * `user_id → users.user_id`
 * `sport_id → sports.sport_id`
+* `skill_level_id → skill_levels.skill_level_id`
+* `frequency_id → training_frequencies.frequency_id`
 
 ---
 
-## Table 6: Preferences
+## Table 11: Relationship Goals *(lookup)*
+
+This table stores valid relationship goal options used in Preferences.
+
+| Field     | Type        | Key     |
+| --------- | ----------- | ------- |
+| goal_id   | INT         | Primary |
+| goal_name | VARCHAR(50) |         |
+
+Example values: Casual, Serious, Friendship, Not sure
+
+---
+
+## Table 12: Preferences
 
 This table stores matching preferences for each user.
 
-| Field             | Type        | Key              |
-| ----------------- | ----------- | ---------------- |
-| user_id           | INT         | Primary, Foreign |
-| preferred_gender  | VARCHAR(20) |                  |
-| min_age           | INT         |                  |
-| max_age           | INT         |                  |
-| max_distance_km   | INT         |                  |
-| relationship_goal | VARCHAR(50) |                  |
+| Field           | Type | Key              |
+| --------------- | ---- | ---------------- |
+| user_id         | INT  | Primary, Foreign |
+| gender_id       | INT  | Foreign          |
+| min_age         | INT  |                  |
+| max_age         | INT  |                  |
+| max_distance_km | INT  |                  |
+| goal_id         | INT  | Foreign          |
 
 Foreign Keys:
 
 * `user_id → users.user_id`
+* `gender_id → genders.gender_id`
+* `goal_id → relationship_goals.goal_id`
 
 ---
 
-## Table 7: Preference Sports
+## Table 13: Preference Sports
 
 This table stores sports that the user prefers their matches to practice.
 
@@ -138,7 +225,7 @@ Foreign Keys:
 
 ---
 
-## Table 8: Likes
+## Table 14: Likes
 
 This table records swipe/like actions between users.
 
@@ -156,7 +243,7 @@ Foreign Keys:
 
 ---
 
-## Table 9: Passes
+## Table 15: Passes
 
 This table records swipe-left (pass/dislike) actions to prevent showing the same profile again.
 
@@ -174,7 +261,7 @@ Foreign Keys:
 
 ---
 
-## Table 10: Matches
+## Table 16: Matches
 
 This table records mutual matches between users.
 
@@ -192,7 +279,7 @@ Foreign Keys:
 
 ---
 
-## Table 11: Messages
+## Table 17: Messages
 
 This table stores messages between matched users.
 
@@ -212,32 +299,53 @@ Foreign Keys:
 
 ---
 
-## Table 12: Notifications
+## Table 18: Notification Types *(lookup)*
+
+This table stores the valid notification type options.
+
+| Field     | Type        | Key     |
+| --------- | ----------- | ------- |
+| type_id   | INT         | Primary |
+| type_name | VARCHAR(50) |         |
+
+Example values: new_match, new_message, admin_warning
+
+---
+
+## Table 19: Notifications
 
 This table stores in-app notifications for users.
 
-| Field             | Type         | Key     |
-| ----------------- | ------------ | ------- |
-| notification_id   | INT          | Primary |
-| user_id           | INT          | Foreign |
-| notification_type | VARCHAR(50)  |         |
-| reference_id      | INT          |         |
-| message           | VARCHAR(255) |         |
-| is_read           | BOOLEAN      |         |
-| created_at        | TIMESTAMP    |         |
+Each notification references at most one related entity via a dedicated nullable FK column. Only the column relevant to the notification type is populated; the others are NULL. This preserves full referential integrity without a generic polymorphic `reference_id`.
+
+| Field           | Type         | Key     |
+| --------------- | ------------ | ------- |
+| notification_id | INT          | Primary |
+| user_id         | INT          | Foreign |
+| type_id         | INT          | Foreign |
+| match_id        | INT NULL     | Foreign |
+| message_id      | INT NULL     | Foreign |
+| complaint_id    | INT NULL     | Foreign |
+| message         | VARCHAR(255) |         |
+| is_read         | BOOLEAN      |         |
+| created_at      | TIMESTAMP    |         |
 
 Foreign Keys:
 
 * `user_id → users.user_id`
+* `type_id → notification_types.type_id`
+* `match_id → matches.match_id`
+* `message_id → messages.message_id`
+* `complaint_id → complaints.complaint_id`
 
 Notes:
 
-* `notification_type` indicates the kind of event (e.g. 'new_match', 'new_message', 'admin_warning').
-* `reference_id` links to the relevant record (e.g. a match_id, message_id, or complaint_id) depending on the notification type.
+* Exactly one of `match_id`, `message_id`, `complaint_id` is non-NULL per row, depending on `type_id`.
+* A CHECK constraint or application-layer rule should enforce this.
 
 ---
 
-## Table 13: Password Reset Tokens
+## Table 20: Password Reset Tokens
 
 This table stores temporary tokens for password reset requests.
 
@@ -255,7 +363,7 @@ Foreign Keys:
 
 ---
 
-## Table 14: Blocked Users
+## Table 21: Blocked Users
 
 This table records users who have been blocked.
 
@@ -273,21 +381,49 @@ Foreign Keys:
 
 ---
 
-## Table 15: Complaints
+## Table 22: Complaint Types *(lookup)*
+
+This table stores the valid complaint type options.
+
+| Field     | Type        | Key     |
+| --------- | ----------- | ------- |
+| type_id   | INT         | Primary |
+| type_name | VARCHAR(50) |         |
+
+Example values: Harassment, Spam, Inappropriate Content, Fake Profile, Other
+
+---
+
+## Table 23: Complaint Statuses *(lookup)*
+
+This table stores the valid complaint status options.
+
+| Field       | Type        | Key     |
+| ----------- | ----------- | ------- |
+| status_id   | INT         | Primary |
+| status_name | VARCHAR(50) |         |
+
+Example values: Pending, Under Review, Resolved, Dismissed
+
+---
+
+## Table 24: Complaints
 
 This table records reports made by users against other users.
 
-| Field          | Type        | Key     |
-| -------------- | ----------- | ------- |
-| complaint_id   | INT         | Primary |
-| reporter_id    | INT         | Foreign |
-| reported_id    | INT         | Foreign |
-| complaint_type | VARCHAR(50) |         |
-| description    | TEXT        |         |
-| status         | VARCHAR(50) |         |
-| created_at     | TIMESTAMP   |         |
+| Field        | Type | Key     |
+| ------------ | ---- | ------- |
+| complaint_id | INT  | Primary |
+| reporter_id  | INT  | Foreign |
+| reported_id  | INT  | Foreign |
+| type_id      | INT  | Foreign |
+| description  | TEXT |         |
+| status_id    | INT  | Foreign |
+| created_at   | TIMESTAMP |    |
 
 Foreign Keys:
 
 * `reporter_id → users.user_id`
 * `reported_id → users.user_id`
+* `type_id → complaint_types.type_id`
+* `status_id → complaint_statuses.status_id`
