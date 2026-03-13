@@ -35,7 +35,7 @@ erDiagram
     }
 
     Profiles {
-        INT user_id PK_FK
+        INT user_id PK, FK
         VARCHAR first_name
         VARCHAR last_name
         DATE birth_date
@@ -71,8 +71,8 @@ erDiagram
     }
 
     UserSports {
-        INT user_id PK_FK
-        INT sport_id PK_FK
+        INT user_id PK, FK
+        INT sport_id PK, FK
         INT skill_level_id FK
         INT years_experience
         INT frequency_id FK
@@ -84,7 +84,7 @@ erDiagram
     }
 
     Preferences {
-        INT user_id PK_FK
+        INT user_id PK, FK
         INT gender_id FK
         INT min_age
         INT max_age
@@ -93,8 +93,8 @@ erDiagram
     }
 
     PreferenceSports {
-        INT user_id PK_FK
-        INT sport_id PK_FK
+        INT user_id PK, FK
+        INT sport_id PK, FK
     }
 
     Likes {
@@ -136,9 +136,9 @@ erDiagram
         INT notification_id PK
         INT user_id FK
         INT type_id FK
-        INT match_id FK_NULL
-        INT message_id FK_NULL
-        INT complaint_id FK_NULL
+        INT match_id FK
+        INT message_id FK
+        INT complaint_id FK
         VARCHAR message
         BOOLEAN is_read
         TIMESTAMP created_at
