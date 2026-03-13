@@ -1,2 +1,2 @@
 # SportSync Backend
-![ER Diagram](db_design/mermaid-diagram.svg)
+![ER Diagram](db_design/mermaid-diagram.png)
