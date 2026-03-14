@@ -94,7 +94,7 @@ This table stores profile photos for each user. Each user can upload multiple ph
 | ------------- | ------------ | ------- |
 | photo_id      | INT          | Primary |
 | user_id       | INT          | Foreign |
-| photo_url     | VARCHAR(255) |         |
+| photo_url     | VARCHAR(2048)|         |
 | display_order | INT          |         |
 | uploaded_at   | TIMESTAMP    |         |
 
@@ -149,13 +149,13 @@ Example values (in order): Rarely, 1–2x per week, 3–4x per week, 5+ per week
 
 This table records which sports a user practices.
 
-| Field          | Type | Key     |
-| -------------- | ---- | ------- |
-| user_id        | INT  | Foreign |
-| sport_id       | INT  | Foreign |
-| skill_level_id | INT  | Foreign |
-| years_experience | INT |        |
-| frequency_id   | INT  | Foreign |
+| Field            | Type | Key     |
+| --------------   | ---- | ------- |
+| user_id          | INT  | Foreign |
+| sport_id         | INT  | Foreign |
+| skill_level_id   | INT  | Foreign |
+| years_experience | INT  |         |
+| frequency_id     | INT  | Foreign |
 
 Primary Key:
 
