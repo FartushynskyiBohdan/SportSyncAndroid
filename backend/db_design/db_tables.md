@@ -73,7 +73,6 @@ This table stores descriptive information about the user.
 | last_name  | VARCHAR(100) |                  |
 | birth_date | DATE         |                  |
 | gender_id  | INT          | Foreign          |
-| height_cm  | INT          |                  |
 | city_id    | INT          | Foreign          |
 | bio        | TEXT         |                  |
 

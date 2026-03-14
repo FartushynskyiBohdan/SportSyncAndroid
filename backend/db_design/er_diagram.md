@@ -40,7 +40,6 @@ erDiagram
         VARCHAR last_name
         DATE birth_date
         INT gender_id FK
-        INT height_cm
         INT city_id FK
         TEXT bio
     }
