@@ -69,7 +69,6 @@ CREATE TABLE profiles (
     last_name   VARCHAR(100) NOT NULL,
     birth_date  DATE         NOT NULL,
     gender_id   INT          NOT NULL,
-    height_cm   INT          NULL,
     city_id     INT          NOT NULL,
     bio         TEXT         NULL,
     PRIMARY KEY (user_id),
