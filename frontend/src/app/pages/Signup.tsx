@@ -2,13 +2,48 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import axios from 'axios';
 
 export function Signup() {
   const [showPassword, setShowPassword] = useState(false);
-  
-  // Example state for demonstrating error placeholders
-  const [emailError, setEmailError] = useState(false);
-  const [passwordError, setPasswordError] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: '',
+    birthDate: '',
+    genderId: 1, // Default to Male
+    cityId: 1, // Default city
+  });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await axios.post('http://localhost:3000/api/auth/signup', formData);
+
+      // Store token
+      localStorage.setItem('token', response.data.token);
+      
+      // Redirect to home
+      window.location.href = '/';
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Signup failed');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans flex flex-col">
@@ -42,30 +77,85 @@ export function Signup() {
             </div>
 
             {/* Form */}
-            <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+            <form className="space-y-6" onSubmit={handleSubmit}>
+                {error && (
+                  <div className="text-red-400 text-sm text-center">{error}</div>
+                )}
                 {/* Email Field */}
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email Address</label>
-                    <div className="relative">
-                      <input 
-                          type="email" 
-                          id="email"
-                          placeholder="athlete@sportsync.com"
-                          className={`w-full bg-white/10 border rounded-xl px-4 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:bg-white/15 transition-all
-                            ${emailError 
-                              ? 'border-red-400 focus:ring-red-400/50' 
-                              : 'border-white/20 hover:border-white/30 focus:ring-purple-400/50 focus:border-purple-400/50'
-                            }`}
-                      />
-                      {emailError && (
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                          <AlertCircle className="w-5 h-5 text-red-400" />
-                        </div>
-                      )}
-                    </div>
-                    {emailError && (
-                      <p className="text-xs text-red-400 pl-1 mt-1 font-medium">Please enter a valid email address.</p>
-                    )}
+                    <input 
+                        type="email" 
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleChange}
+                        placeholder="athlete@sportsync.com"
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
+                        required
+                    />
+                </div>
+
+                {/* First Name */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="firstName">First Name</label>
+                    <input 
+                        type="text" 
+                        id="firstName"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleChange}
+                        placeholder="John"
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
+                        required
+                    />
+                </div>
+
+                {/* Last Name */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="lastName">Last Name</label>
+                    <input 
+                        type="text" 
+                        id="lastName"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleChange}
+                        placeholder="Doe"
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
+                        required
+                    />
+                </div>
+
+                {/* Birth Date */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="birthDate">Birth Date</label>
+                    <input 
+                        type="date" 
+                        id="birthDate"
+                        name="birthDate"
+                        value={formData.birthDate}
+                        onChange={handleChange}
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
+                        required
+                    />
+                </div>
+
+                {/* Gender */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="genderId">Gender</label>
+                    <select 
+                        id="genderId"
+                        name="genderId"
+                        value={formData.genderId}
+                        onChange={handleChange}
+                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
+                        required
+                    >
+                        <option value={1}>Male</option>
+                        <option value={2}>Female</option>
+                        <option value={3}>Non-binary</option>
+                        <option value={4}>Prefer not to say</option>
+                    </select>
                 </div>
 
                 {/* Password Field */}
@@ -75,12 +165,12 @@ export function Signup() {
                       <input 
                           type={showPassword ? "text" : "password"} 
                           id="password"
+                          name="password"
+                          value={formData.password}
+                          onChange={handleChange}
                           placeholder="Create a strong password"
-                          className={`w-full bg-white/10 border rounded-xl pl-4 pr-12 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:bg-white/15 transition-all
-                            ${passwordError 
-                              ? 'border-red-400 focus:ring-red-400/50' 
-                              : 'border-white/20 hover:border-white/30 focus:ring-purple-400/50 focus:border-purple-400/50'
-                            }`}
+                          className="w-full bg-white/10 border border-white/20 rounded-xl pl-4 pr-12 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
+                          required
                       />
                       <button
                         type="button"
@@ -95,18 +185,16 @@ export function Signup() {
                         )}
                       </button>
                     </div>
-                    {passwordError && (
-                      <p className="text-xs text-red-400 pl-1 mt-1 font-medium">Password must be at least 8 characters.</p>
-                    )}
                 </div>
 
                 {/* Submit Button */}
                 <div className="pt-2">
                   <button 
                       type="submit" 
-                      className="w-full bg-white text-purple-900 font-bold py-3.5 rounded-full hover:bg-purple-100 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/20 cursor-pointer"
+                      disabled={loading}
+                      className="w-full bg-white text-purple-900 font-bold py-3.5 rounded-full hover:bg-purple-100 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/20 cursor-pointer disabled:opacity-50"
                   >
-                      Create Account
+                      {loading ? 'Creating Account...' : 'Create Account'}
                   </button>
                 </div>
             </form>
