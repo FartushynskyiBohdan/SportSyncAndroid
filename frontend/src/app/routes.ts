@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
-import { Discovery } from "./pages/Discovery";
+import { Discovery } from "./pages/Discover";
 import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
@@ -22,7 +22,7 @@ export const router = createBrowserRouter([
     Component: Signup,
   },
   {
-    path: "/discovery",
+    path: "/discover",
     Component: Discovery,
   },
   {
