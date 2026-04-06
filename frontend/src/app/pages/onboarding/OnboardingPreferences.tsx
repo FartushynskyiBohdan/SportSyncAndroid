@@ -2,6 +2,7 @@ import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
 import api, { isAxiosError } from '@/app/lib/api';
+import { useAuth } from '@/app/context/AuthContext';
 import { ChevronDown, Loader2, AlertCircle, Check } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -317,6 +318,7 @@ function validate(form: FormState): FieldErrors {
 
 export function OnboardingPreferences() {
   const navigate = useNavigate();
+  const { user, updateUser } = useAuth();
 
   /* Lookup data */
   const [genders,     setGenders]     = useState<Gender[]>([]);
@@ -389,6 +391,10 @@ export function OnboardingPreferences() {
       });
 
       await api.patch('/api/users/onboarding-complete');
+
+      if (user) {
+        updateUser({ ...user, onboardingComplete: true });
+      }
 
       navigate('/onboarding/complete');
     } catch (err: unknown) {
