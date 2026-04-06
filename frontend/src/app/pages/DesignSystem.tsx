@@ -5,12 +5,9 @@ import { ImageWithFallback } from "../components/figma/ImageWithFallback";
 export function DesignSystem() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#2E1065] to-[#581C87] text-white overflow-x-hidden">
-      {/* Navbar example inline (relative instead of fixed for preview purposes) */}
-      <div className="relative border-b border-white/10 mb-12">
-        <Navbar />
-      </div>
+      <Navbar />
 
-      <div className="max-w-[1440px] mx-auto px-6 pb-24">
+      <div className="max-w-[1440px] mx-auto px-6 pt-28 pb-24">
         <div className="mb-16 text-center md:text-left">
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">SportSync Design System</h1>
           <p className="text-white/70 text-lg max-w-2xl">
