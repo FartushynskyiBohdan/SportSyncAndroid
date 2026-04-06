@@ -132,3 +132,6 @@ You can also use **Beekeeper Studio** or **MySQL Workbench** with the same SSH t
 
 > Following these steps, all groupmates should be able to securely connect to the database from their local machines without exposing MySQL to the public internet.
 
+## 9. Dev mode: routing the database to the frontend
+ssh -L 3306:127.0.0.1:3306 oracle-vm -N
+

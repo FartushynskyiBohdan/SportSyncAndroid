@@ -100,12 +100,15 @@ CREATE TABLE sports (
 );
 
 INSERT INTO sports (sport_name) VALUES
-    ('Running'),
+    ('Basketball'),
+    ('Combat Sports'),
     ('CrossFit'),
     ('Cycling'),
     ('Football'),
-    ('Tennis')
-    ('Rugby');
+    ('Rugby'),
+    ('Running'),
+    ('Swimming'),
+    ('Tennis');
 
 -- ------------------------------------------------------------
 -- Table 8: Skill Levels (lookup)

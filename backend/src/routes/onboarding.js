@@ -39,6 +39,77 @@ router.get('/countries/:countryId/cities', async (req, res) => {
   }
 });
 
+// GET /api/sports
+router.get('/sports', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT sport_id AS id, sport_name AS name FROM sports ORDER BY sport_name');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching sports:', error);
+    res.status(500).json({ error: 'Failed to fetch sports' });
+  }
+});
+
+// GET /api/skill-levels
+router.get('/skill-levels', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT skill_level_id AS id, level_name AS name FROM skill_levels ORDER BY sort_order');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching skill levels:', error);
+    res.status(500).json({ error: 'Failed to fetch skill levels' });
+  }
+});
+
+// GET /api/frequencies
+router.get('/frequencies', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT frequency_id AS id, frequency_label AS name FROM training_frequencies ORDER BY sort_order');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching frequencies:', error);
+    res.status(500).json({ error: 'Failed to fetch frequencies' });
+  }
+});
+
+// POST /api/onboarding/sports
+router.post('/onboarding/sports', async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const sports = req.body;
+
+    if (!Array.isArray(sports) || sports.length === 0) {
+      return res.status(400).json({ error: 'At least one sport is required.' });
+    }
+
+    for (const s of sports) {
+      const { sport_id, skill_level_id, years_experience, frequency_id } = s;
+      if (!sport_id || !skill_level_id || !frequency_id) {
+        return res.status(400).json({ error: 'sport_id, skill_level_id, and frequency_id are required for each sport.' });
+      }
+    }
+
+    // Delete existing user_sports rows for this user, then re-insert
+    await db.execute('DELETE FROM user_sports WHERE user_id = ?', [userId]);
+
+    for (const s of sports) {
+      const { sport_id, skill_level_id, years_experience, frequency_id } = s;
+      await db.execute(
+        `INSERT INTO user_sports (user_id, sport_id, skill_level_id, years_experience, frequency_id)
+         VALUES (?, ?, ?, ?, ?)`,
+        [userId, sport_id, skill_level_id, years_experience ?? null, frequency_id]
+      );
+    }
+
+    res.json({ message: 'Sports saved successfully.' });
+  } catch (error) {
+    console.error('Error saving sports:', error);
+    res.status(500).json({ error: 'Failed to save sports.' });
+  }
+});
+
 // POST /api/onboarding/profile
 router.post('/onboarding/profile', async (req, res) => {
   try {
