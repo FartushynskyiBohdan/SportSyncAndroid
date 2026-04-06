@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 export function Signup() {
@@ -9,16 +9,11 @@ export function Signup() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
-    firstName: '',
-    lastName: '',
-    birthDate: '',
-    genderId: 1, // Default to Male
-    cityId: 1, // Default city
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -31,13 +26,10 @@ export function Signup() {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:3000/api/auth/signup', formData);
+      const response = await axios.post('/api/auth/signup', formData);
 
-      // Store token
       localStorage.setItem('token', response.data.token);
-      
-      // Redirect to home
-      window.location.href = '/';
+      window.location.href = '/onboarding';
     } catch (err: any) {
       setError(err.response?.data?.error || 'Signup failed');
     } finally {
@@ -58,9 +50,9 @@ export function Signup() {
           </Link>
         </div>
       </nav>
-      
+
       <div className="flex-1 flex items-center justify-center px-6 py-24 mt-20 md:py-32">
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
@@ -81,11 +73,12 @@ export function Signup() {
                 {error && (
                   <div className="text-red-400 text-sm text-center">{error}</div>
                 )}
+
                 {/* Email Field */}
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email Address</label>
-                    <input 
-                        type="email" 
+                    <input
+                        type="email"
                         id="email"
                         name="email"
                         value={formData.email}
@@ -96,74 +89,12 @@ export function Signup() {
                     />
                 </div>
 
-                {/* First Name */}
-                <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="firstName">First Name</label>
-                    <input 
-                        type="text" 
-                        id="firstName"
-                        name="firstName"
-                        value={formData.firstName}
-                        onChange={handleChange}
-                        placeholder="John"
-                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
-                        required
-                    />
-                </div>
-
-                {/* Last Name */}
-                <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="lastName">Last Name</label>
-                    <input 
-                        type="text" 
-                        id="lastName"
-                        name="lastName"
-                        value={formData.lastName}
-                        onChange={handleChange}
-                        placeholder="Doe"
-                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
-                        required
-                    />
-                </div>
-
-                {/* Birth Date */}
-                <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="birthDate">Birth Date</label>
-                    <input 
-                        type="date" 
-                        id="birthDate"
-                        name="birthDate"
-                        value={formData.birthDate}
-                        onChange={handleChange}
-                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
-                        required
-                    />
-                </div>
-
-                {/* Gender */}
-                <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="genderId">Gender</label>
-                    <select 
-                        id="genderId"
-                        name="genderId"
-                        value={formData.genderId}
-                        onChange={handleChange}
-                        className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
-                        required
-                    >
-                        <option value={1}>Male</option>
-                        <option value={2}>Female</option>
-                        <option value={3}>Non-binary</option>
-                        <option value={4}>Prefer not to say</option>
-                    </select>
-                </div>
-
                 {/* Password Field */}
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium pl-1 text-white/80" htmlFor="password">Password</label>
                     <div className="relative">
-                      <input 
-                          type={showPassword ? "text" : "password"} 
+                      <input
+                          type={showPassword ? "text" : "password"}
                           id="password"
                           name="password"
                           value={formData.password}
@@ -189,8 +120,8 @@ export function Signup() {
 
                 {/* Submit Button */}
                 <div className="pt-2">
-                  <button 
-                      type="submit" 
+                  <button
+                      type="submit"
                       disabled={loading}
                       className="w-full bg-white text-purple-900 font-bold py-3.5 rounded-full hover:bg-purple-100 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-black/20 cursor-pointer disabled:opacity-50"
                   >
