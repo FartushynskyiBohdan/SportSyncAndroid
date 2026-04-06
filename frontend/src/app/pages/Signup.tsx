@@ -6,7 +6,7 @@ import api from '@/app/lib/api';
 import { useAuth } from '@/app/context/AuthContext';
 
 export function Signup() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, user } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -17,7 +17,7 @@ export function Signup() {
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) {
-    return <Navigate to="/onboarding/profile" replace />;
+    return <Navigate to={user?.onboardingComplete ? '/discover' : '/onboarding/profile'} replace />;
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

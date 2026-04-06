@@ -6,7 +6,7 @@ import api from '@/app/lib/api';
 import { useAuth } from '@/app/context/AuthContext';
 
 export function Login() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, user } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,7 +15,7 @@ export function Login() {
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) {
-    return <Navigate to="/discover" replace />;
+    return <Navigate to={user?.onboardingComplete ? '/discover' : '/onboarding/profile'} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
