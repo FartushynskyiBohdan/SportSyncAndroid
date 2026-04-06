@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router';
 export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isDiscovery = location.pathname === '/discovery';
+  const isDiscovery = location.pathname === '/discover';
   const isPublicPage = location.pathname === '/' || location.pathname === '/login';
 
   return (
@@ -35,8 +35,8 @@ export function Navbar() {
 
               {/* Links */}
               <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
-                <button onClick={() => navigate('/discovery')} className="hover:text-purple-300 transition-colors cursor-pointer">
-                  Browse Athletes
+                <button onClick={() => navigate('/discover')} className="hover:text-purple-300 transition-colors cursor-pointer">
+                  Discover Athletes
                 </button>
                 <button onClick={() => navigate('/matches')} className="hover:text-purple-300 transition-colors cursor-pointer">
                   Matches
