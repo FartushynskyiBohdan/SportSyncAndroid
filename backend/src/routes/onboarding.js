@@ -1,7 +1,33 @@
 const express = require('express');
-const db = require('../config/database');
+const path    = require('path');
+const fs      = require('fs');
+const multer  = require('multer');
+const db      = require('../config/database');
 
 const router = express.Router();
+
+/* ─── Multer setup ─── */
+
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename:    (_req, file,  cb) => {
+    const ext  = path.extname(file.originalname).toLowerCase() || '.jpg';
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}${ext}`;
+    cb(null, name);
+  },
+});
+
+const upload = multer({
+  storage,
+  limits:     { fileSize: 10 * 1024 * 1024 },          // 10 MB
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed.'));
+  },
+});
 
 // GET /api/genders
 router.get('/genders', async (req, res) => {
@@ -75,7 +101,7 @@ router.get('/frequencies', async (req, res) => {
 // POST /api/onboarding/sports
 router.post('/onboarding/sports', async (req, res) => {
   try {
-    const userId = req.userId;
+    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const sports = req.body;
@@ -110,6 +136,69 @@ router.post('/onboarding/sports', async (req, res) => {
   }
 });
 
+// POST /api/onboarding/photos
+router.post('/onboarding/photos', upload.array('photos', 6), async (req, res) => {
+  try {
+    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded.' });
+    }
+
+    // Check how many photos the user already has
+    const [[{ count }]] = await db.execute(
+      'SELECT COUNT(*) AS count FROM user_photos WHERE user_id = ?', [userId]
+    );
+    if (count + req.files.length > 6) {
+      return res.status(400).json({ error: 'Maximum 6 photos allowed.' });
+    }
+
+    const results = [];
+    for (let i = 0; i < req.files.length; i++) {
+      const file         = req.files[i];
+      const photo_url    = `/uploads/${file.filename}`;
+      const display_order = Number(req.body.display_order ?? count) + i;
+
+      const [result] = await db.execute(
+        'INSERT INTO user_photos (user_id, photo_url, display_order) VALUES (?, ?, ?)',
+        [userId, photo_url, display_order]
+      );
+      results.push({ photo_id: result.insertId, photo_url, display_order });
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error('Error uploading photos:', error);
+    res.status(500).json({ error: 'Failed to upload photos.' });
+  }
+});
+
+// PUT /api/onboarding/photos/order
+router.put('/onboarding/photos/order', async (req, res) => {
+  try {
+    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const items = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Order array is required.' });
+    }
+
+    for (const { photo_id, display_order } of items) {
+      await db.execute(
+        'UPDATE user_photos SET display_order = ? WHERE photo_id = ? AND user_id = ?',
+        [display_order, photo_id, userId]
+      );
+    }
+
+    res.json({ message: 'Order updated.' });
+  } catch (error) {
+    console.error('Error updating photo order:', error);
+    res.status(500).json({ error: 'Failed to update order.' });
+  }
+});
+
 // POST /api/onboarding/profile
 router.post('/onboarding/profile', async (req, res) => {
   try {
@@ -130,7 +219,7 @@ router.post('/onboarding/profile', async (req, res) => {
 
     // TODO: Extract user_id from JWT auth middleware
     // For now, expect user_id in the request (or from auth middleware later)
-    const userId = req.userId; // set by auth middleware
+    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up // set by auth middleware
 
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required.' });
