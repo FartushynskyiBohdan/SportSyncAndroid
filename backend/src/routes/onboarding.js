@@ -269,4 +269,78 @@ router.post('/onboarding/profile', async (req, res) => {
   }
 });
 
+// GET /api/goals
+router.get('/goals', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT goal_id AS id, goal_name AS name FROM relationship_goals ORDER BY goal_id');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching goals:', error);
+    res.status(500).json({ error: 'Failed to fetch goals' });
+  }
+});
+
+// POST /api/onboarding/preferences
+router.post('/onboarding/preferences', async (req, res) => {
+  try {
+    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const { gender_id, min_age, max_age, max_distance_km, goal_id, sports } = req.body;
+
+    if (!gender_id || !goal_id) {
+      return res.status(400).json({ error: 'Gender and relationship goal are required.' });
+    }
+
+    if (!Number.isInteger(min_age) || !Number.isInteger(max_age) || min_age >= max_age) {
+      return res.status(400).json({ error: 'Invalid age range.' });
+    }
+
+    if (!Array.isArray(sports) || sports.length === 0) {
+      return res.status(400).json({ error: 'At least one preferred sport is required.' });
+    }
+
+    // Upsert preferences
+    await db.execute(
+      `INSERT INTO preferences (user_id, gender_id, min_age, max_age, max_distance_km, goal_id)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE gender_id = VALUES(gender_id), min_age = VALUES(min_age),
+         max_age = VALUES(max_age), max_distance_km = VALUES(max_distance_km), goal_id = VALUES(goal_id)`,
+      [userId, gender_id, min_age, max_age, max_distance_km ?? null, goal_id]
+    );
+
+    // Replace preference_sports
+    await db.execute('DELETE FROM preference_sports WHERE user_id = ?', [userId]);
+    for (const sport_id of sports) {
+      await db.execute(
+        'INSERT INTO preference_sports (user_id, sport_id) VALUES (?, ?)',
+        [userId, sport_id]
+      );
+    }
+
+    res.json({ message: 'Preferences saved successfully.' });
+  } catch (error) {
+    console.error('Error saving preferences:', error);
+    res.status(500).json({ error: 'Failed to save preferences.' });
+  }
+});
+
+// PATCH /api/users/onboarding-complete
+router.patch('/users/onboarding-complete', async (req, res) => {
+  try {
+    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    await db.execute(
+      'UPDATE users SET onboarding_complete = TRUE WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({ message: 'Onboarding marked as complete.' });
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding.' });
+  }
+});
+
 module.exports = router;
