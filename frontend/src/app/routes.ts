@@ -9,6 +9,7 @@ import { Profile } from "./pages/Profile";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
+import { OnboardingPhotos } from "./pages/onboarding/OnboardingPhotos";
 
 export const router = createBrowserRouter([
   {
@@ -50,5 +51,9 @@ export const router = createBrowserRouter([
   {
     path: "/onboarding/sports",
     Component: OnboardingSports,
+  },
+  {
+    path: "/onboarding/photos",
+    Component: OnboardingPhotos,
   },
 ]);
