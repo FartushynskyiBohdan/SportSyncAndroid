@@ -4,8 +4,8 @@
 
 -   `/` -- Landing Page
 -   `/about` -- About the company/app
--   `/how-it-works` -- Explanation of the platform
--   `/features` -- Feature overview
+<!-- -   `/how-it-works` -- Explanation of the platform -->
+<!-- -   `/features` -- Feature overview -->
 -   `/faq` -- Frequently asked questions
 
 ------------------------------------------------------------------------
@@ -77,18 +77,18 @@
 
 ------------------------------------------------------------------------
 
-## 10. Legal Pages
+<!-- ## 10. Legal Pages
 
 -   `/terms` -- Terms of service
 -   `/privacy` -- Privacy policy
--   `/cookies` -- Cookie policy
+-   `/cookies` -- Cookie policy -->
 
 ------------------------------------------------------------------------
 
-## 11. Optional Pages
+<!-- ## 11. Optional Pages
 
 -   `/premium` -- Subscription plans
--   `/events` -- Athletic events and meetups
+-   `/events` -- Athletic events and meetups -->
 
 ------------------------------------------------------------------------
 
