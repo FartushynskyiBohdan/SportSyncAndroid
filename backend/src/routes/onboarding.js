@@ -199,6 +199,34 @@ router.put('/onboarding/photos/order', async (req, res) => {
   }
 });
 
+// POST /api/onboarding/bio
+router.post('/onboarding/bio', async (req, res) => {
+  try {
+    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const { bio } = req.body;
+
+    if (!bio || typeof bio !== 'string' || bio.trim().length < 20) {
+      return res.status(400).json({ error: 'Bio must be at least 20 characters.' });
+    }
+
+    if (bio.trim().length > 250) {
+      return res.status(400).json({ error: 'Bio must be 250 characters or fewer.' });
+    }
+
+    await db.execute(
+      `UPDATE profiles SET bio = ? WHERE user_id = ?`,
+      [bio.trim(), userId]
+    );
+
+    res.json({ message: 'Bio saved successfully.' });
+  } catch (error) {
+    console.error('Error saving bio:', error);
+    res.status(500).json({ error: 'Failed to save bio.' });
+  }
+});
+
 // POST /api/onboarding/profile
 router.post('/onboarding/profile', async (req, res) => {
   try {
