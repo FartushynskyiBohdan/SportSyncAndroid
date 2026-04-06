@@ -29,7 +29,7 @@ export function Signup() {
       const response = await axios.post('/api/auth/signup', formData);
 
       localStorage.setItem('token', response.data.token);
-      window.location.href = '/onboarding';
+      window.location.href = '/onboarding/profile';
     } catch (err: any) {
       setError(err.response?.data?.error || 'Signup failed');
     } finally {
