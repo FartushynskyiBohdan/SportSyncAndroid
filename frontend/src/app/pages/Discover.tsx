@@ -1,8 +1,21 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion, useAnimation } from 'motion/react';
 import { Navbar } from '../components/Navbar';
-import { Heart, X, MapPin, Activity, Target } from 'lucide-react';
+import { Heart, X, MapPin, Activity, Target, Sliders } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import DiscoverySettings from '../components/DiscoverySettings';
+
+interface FilterState {
+  interestedInGender: string;
+  minAge: number;
+  maxAge: number;
+  maxDistance: number;
+  selectedSports: string[];
+  minSkillLevel: string;
+  preferredFrequency: string;
+  minPhotos: number;
+  showOutOfRange: boolean;
+}
 
 const ATHLETES = [
   {
@@ -50,6 +63,18 @@ const ATHLETES = [
 
 export function Discovery() {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [filters, setFilters] = useState<FilterState>({
+    interestedInGender: '2',
+    minAge: 20,
+    maxAge: 35,
+    maxDistance: 25,
+    selectedSports: [],
+    minSkillLevel: '1',
+    preferredFrequency: '2',
+    minPhotos: 1,
+    showOutOfRange: false,
+  });
   const controls = useAnimation();
   const [exitX, setExitX] = useState<number>(0);
 
@@ -95,6 +120,18 @@ export function Discovery() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans flex flex-col overflow-hidden">
       <Navbar />
+      
+      {/* Filter Button - Top Left */}
+      <div className="fixed top-24 left-4 z-20">
+        <button
+          onClick={() => setIsSettingsOpen(true)}
+          className="p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl group"
+          aria-label="Discovery filters"
+          title="Discovery Settings"
+        >
+          <Sliders className="w-5 h-5 group-hover:text-purple-300 transition-colors" />
+        </button>
+      </div>
       
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-24 relative z-10">
@@ -214,6 +251,17 @@ export function Discovery() {
 
         </div>
       </div>
+
+      {/* Discovery Settings Drawer */}
+      <DiscoverySettings
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onSave={(newFilters) => {
+          setFilters(newFilters);
+          setCurrentIndex(0); // Reset to start when filters change
+        }}
+        initialFilters={filters}
+      />
     </div>
   );
 }
