@@ -26,5 +26,7 @@ Thumbs.db
 # Vite
 *.local
 
+table_populating/
+
 # Optional: uncomment if you want to keep design_process out of the repo
 # design_process/
