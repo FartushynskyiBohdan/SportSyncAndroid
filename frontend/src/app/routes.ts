@@ -7,6 +7,7 @@ import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
 import { DesignSystem } from "./pages/DesignSystem";
+import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 
 export const router = createBrowserRouter([
   {
@@ -40,5 +41,9 @@ export const router = createBrowserRouter([
   {
     path: "/design-system",
     Component: DesignSystem,
+  },
+  {
+    path: "/onboarding/profile",
+    Component: OnboardingProfile,
   },
 ]);
