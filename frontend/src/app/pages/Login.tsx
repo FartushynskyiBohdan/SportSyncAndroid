@@ -1,14 +1,21 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Navbar } from '../components/Navbar';
-import { Link } from 'react-router';
-import axios from 'axios';
+import { Link, Navigate, useNavigate } from 'react-router';
+import api from '@/app/lib/api';
+import { useAuth } from '@/app/context/AuthContext';
 
 export function Login() {
+  const { isAuthenticated, login } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  if (isAuthenticated) {
+    return <Navigate to="/discover" replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,16 +23,13 @@ export function Login() {
     setError('');
 
     try {
-      const response = await axios.post('/api/auth/login', {
+      const response = await api.post('/api/auth/login', {
         email,
         password,
       });
 
-      // Store token (you might want to use localStorage or a state management solution)
-      localStorage.setItem('token', response.data.token);
-      
-      // Redirect to dashboard or home
-      window.location.href = '/';
+      login(response.data.token, response.data.user);
+      navigate('/discover');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {

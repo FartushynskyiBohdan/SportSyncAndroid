@@ -1,7 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'framer-motion';
-import axios from 'axios';
+import api, { isAxiosError } from '@/app/lib/api';
 import { ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -249,12 +249,12 @@ export function OnboardingProfile() {
 
   /* Fetch genders + countries on mount */
   useEffect(() => {
-    axios.get<Gender[]>('/api/genders')
+    api.get<Gender[]>('/api/genders')
       .then(r => setGenders(r.data))
       .catch(() => {/* silently ignore; user sees empty dropdown */})
       .finally(() => setLoadingGenders(false));
 
-    axios.get<Country[]>('/api/countries')
+    api.get<Country[]>('/api/countries')
       .then(r => setCountries(r.data))
       .catch(() => {})
       .finally(() => setLoadingCountries(false));
@@ -268,7 +268,7 @@ export function OnboardingProfile() {
     setCities([]);
     setForm(prev => ({ ...prev, city_id: '' }));
 
-    axios.get<City[]>(`/api/countries/${form.country_id}/cities`)
+    api.get<City[]>(`/api/countries/${form.country_id}/cities`)
       .then(r => setCities(r.data))
       .catch(() => {})
       .finally(() => setLoadingCities(false));
@@ -296,7 +296,7 @@ export function OnboardingProfile() {
     setApiError(null);
 
     try {
-      await axios.post('/api/onboarding/profile', {
+      await api.post('/api/onboarding/profile', {
         first_name: form.first_name.trim(),
         last_name:  form.last_name.trim(),
         birth_date: form.birth_date,
@@ -305,7 +305,7 @@ export function OnboardingProfile() {
       });
       navigate('/onboarding/sports');
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setApiError(
           err.response?.data?.message ??
           err.response?.data?.error ??

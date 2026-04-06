@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import axios from 'axios';
+import api, { isAxiosError } from '@/app/lib/api';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 /* ─── Constants ─── */
@@ -108,10 +108,10 @@ export function OnboardingBio() {
     setApiError(null);
 
     try {
-      await axios.post('/api/onboarding/bio', { bio: bio.trim() });
+      await api.post('/api/onboarding/bio', { bio: bio.trim() });
       navigate('/onboarding/preferences');
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setApiError(
           err.response?.data?.message ??
           err.response?.data?.error ??

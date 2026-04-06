@@ -1,7 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import axios from 'axios';
+import api, { isAxiosError } from '@/app/lib/api';
 import { ChevronDown, Loader2, AlertCircle, Check } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -342,9 +342,9 @@ export function OnboardingPreferences() {
   /* Fetch lookups */
   useEffect(() => {
     Promise.all([
-      axios.get<Gender[]>('/api/genders'),
-      axios.get<Goal[]>('/api/goals'),
-      axios.get<Sport[]>('/api/sports'),
+      api.get<Gender[]>('/api/genders'),
+      api.get<Goal[]>('/api/goals'),
+      api.get<Sport[]>('/api/sports'),
     ])
       .then(([g, go, s]) => {
         setGenders(g.data);
@@ -379,7 +379,7 @@ export function OnboardingPreferences() {
     setApiError(null);
 
     try {
-      await axios.post('/api/onboarding/preferences', {
+      await api.post('/api/onboarding/preferences', {
         gender_id:       Number(form.gender_id),
         min_age:         form.min_age,
         max_age:         form.max_age,
@@ -388,11 +388,11 @@ export function OnboardingPreferences() {
         sports:          form.sports,
       });
 
-      await axios.patch('/api/users/onboarding-complete');
+      await api.patch('/api/users/onboarding-complete');
 
       navigate('/onboarding/complete');
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setApiError(
           err.response?.data?.message ??
           err.response?.data?.error ??

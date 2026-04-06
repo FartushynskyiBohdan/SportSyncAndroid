@@ -1,7 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import axios from 'axios';
+import api, { isAxiosError } from '@/app/lib/api';
 import { ChevronDown, Loader2, AlertCircle, Check } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -233,9 +233,9 @@ export function OnboardingSports() {
   /* Fetch all lookup data in parallel */
   useEffect(() => {
     Promise.all([
-      axios.get<Sport[]>('/api/sports'),
-      axios.get<SkillLevel[]>('/api/skill-levels'),
-      axios.get<Frequency[]>('/api/frequencies'),
+      api.get<Sport[]>('/api/sports'),
+      api.get<SkillLevel[]>('/api/skill-levels'),
+      api.get<Frequency[]>('/api/frequencies'),
     ])
       .then(([s, sk, f]) => {
         setSports(s.data);
@@ -288,10 +288,10 @@ export function OnboardingSports() {
     }));
 
     try {
-      await axios.post('/api/onboarding/sports', payload);
+      await api.post('/api/onboarding/sports', payload);
       navigate('/onboarding/photos');
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setApiError(
           err.response?.data?.message ??
           err.response?.data?.error ??

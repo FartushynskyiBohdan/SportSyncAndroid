@@ -3,6 +3,7 @@ const path    = require('path');
 const fs      = require('fs');
 const multer  = require('multer');
 const db      = require('../config/database');
+const auth    = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -99,9 +100,9 @@ router.get('/frequencies', async (req, res) => {
 });
 
 // POST /api/onboarding/sports
-router.post('/onboarding/sports', async (req, res) => {
+router.post('/onboarding/sports', auth, async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const sports = req.body;
@@ -137,9 +138,9 @@ router.post('/onboarding/sports', async (req, res) => {
 });
 
 // POST /api/onboarding/photos
-router.post('/onboarding/photos', upload.array('photos', 6), async (req, res) => {
+router.post('/onboarding/photos', auth, upload.array('photos', 6), async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     if (!req.files || req.files.length === 0) {
@@ -175,9 +176,9 @@ router.post('/onboarding/photos', upload.array('photos', 6), async (req, res) =>
 });
 
 // PUT /api/onboarding/photos/order
-router.put('/onboarding/photos/order', async (req, res) => {
+router.put('/onboarding/photos/order', auth, async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const items = req.body;
@@ -200,9 +201,9 @@ router.put('/onboarding/photos/order', async (req, res) => {
 });
 
 // POST /api/onboarding/bio
-router.post('/onboarding/bio', async (req, res) => {
+router.post('/onboarding/bio', auth, async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const { bio } = req.body;
@@ -228,7 +229,7 @@ router.post('/onboarding/bio', async (req, res) => {
 });
 
 // POST /api/onboarding/profile
-router.post('/onboarding/profile', async (req, res) => {
+router.post('/onboarding/profile', auth, async (req, res) => {
   try {
     const { first_name, last_name, birth_date, gender_id, city_id } = req.body;
 
@@ -245,9 +246,7 @@ router.post('/onboarding/profile', async (req, res) => {
       return res.status(400).json({ error: 'You must be at least 18 years old.' });
     }
 
-    // TODO: Extract user_id from JWT auth middleware
-    // For now, expect user_id in the request (or from auth middleware later)
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up // set by auth middleware
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required.' });
@@ -281,9 +280,9 @@ router.get('/goals', async (req, res) => {
 });
 
 // POST /api/onboarding/preferences
-router.post('/onboarding/preferences', async (req, res) => {
+router.post('/onboarding/preferences', auth, async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const { gender_id, min_age, max_age, max_distance_km, goal_id, sports } = req.body;
@@ -326,9 +325,9 @@ router.post('/onboarding/preferences', async (req, res) => {
 });
 
 // PATCH /api/users/onboarding-complete
-router.patch('/users/onboarding-complete', async (req, res) => {
+router.patch('/users/onboarding-complete', auth, async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     await db.execute(

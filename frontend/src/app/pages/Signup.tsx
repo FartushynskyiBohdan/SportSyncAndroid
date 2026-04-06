@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Link } from 'react-router';
+import { Link, Navigate, useNavigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
-import axios from 'axios';
+import api from '@/app/lib/api';
+import { useAuth } from '@/app/context/AuthContext';
 
 export function Signup() {
+  const { isAuthenticated, login } = useAuth();
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -12,6 +15,10 @@ export function Signup() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  if (isAuthenticated) {
+    return <Navigate to="/onboarding/profile" replace />;
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -26,10 +33,10 @@ export function Signup() {
     setError('');
 
     try {
-      const response = await axios.post('/api/auth/signup', formData);
+      const response = await api.post('/api/auth/signup', formData);
 
-      localStorage.setItem('token', response.data.token);
-      window.location.href = '/onboarding/profile';
+      login(response.data.token, response.data.user);
+      navigate('/onboarding/profile');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Signup failed');
     } finally {
