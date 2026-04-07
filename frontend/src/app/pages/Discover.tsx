@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, useAnimation } from 'motion/react';
 import { Navbar } from '../components/Navbar';
-import { Heart, X, MapPin, Activity, Target, Sliders } from 'lucide-react';
+import { Heart, X, MapPin, Activity, Target, Sliders, Loader2, RefreshCw } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import DiscoverySettings from '../components/DiscoverySettings';
+import apiClient from '../lib/api';
 
 interface FilterState {
   interestedInGender: string;
@@ -17,49 +18,17 @@ interface FilterState {
   showOutOfRange: boolean;
 }
 
-const ATHLETES = [
-  {
-    id: 1,
-    name: "Emma",
-    age: 26,
-    distance: "4 km away",
-    image: "https://images.unsplash.com/photo-1771513699065-0f0f696341b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmZW1hbGUlMjBydW5uZXIlMjBwb3J0cmFpdCUyMGF0aGxldGV8ZW58MXx8fHwxNzcyODMzMTc0fDA&ixlib=rb-4.1.0&q=80&w=1080",
-    sports: [
-      { icon: "🏃", name: "Running", level: "Competitive" },
-      { icon: "🚴", name: "Cycling", level: "Intermediate" }
-    ],
-    frequency: "5x per week",
-    goal: "Marathon training partner",
-    tag: "New today"
-  },
-  {
-    id: 2,
-    name: "Alex",
-    age: 28,
-    distance: "2 km away",
-    image: "https://images.unsplash.com/photo-1752778597829-9e92e6d8b42f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYWxlJTIwY3Jvc3NmaXQlMjBhdGhsZXRlJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzcyODMzMTkxfDA&ixlib=rb-4.1.0&q=80&w=1080",
-    sports: [
-      { icon: "🏋️", name: "CrossFit", level: "Advanced" },
-      { icon: "💪", name: "Weightlifting", level: "Advanced" }
-    ],
-    frequency: "6x per week",
-    goal: "Competition prep",
-    tag: "Recently active"
-  },
-  {
-    id: 3,
-    name: "Sarah",
-    age: 24,
-    distance: "7 km away",
-    image: "https://images.unsplash.com/photo-1472521882609-05fb39814d60?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmZW1hbGUlMjBzd2ltbWVyJTIwcG9ydHJhaXQlMjBhdGhsZXRlfGVufDF8fHx8MTc3MjgzMzE5MXww&ixlib=rb-4.1.0&q=80&w=1080",
-    sports: [
-      { icon: "🏊‍♀️", name: "Swimming", level: "Intermediate" },
-      { icon: "🧘‍♀️", name: "Yoga", level: "Beginner" }
-    ],
-    frequency: "3x per week",
-    goal: "Active lifestyle"
-  }
-];
+interface Athlete {
+  id: number;
+  name: string;
+  age: number;
+  distance: string;
+  image: string;
+  sports: { icon: string; name: string; level: string }[];
+  frequency: string;
+  goal: string;
+  tag?: string | null;
+}
 
 export function Discovery() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -76,14 +45,34 @@ export function Discovery() {
     showOutOfRange: false,
   });
   const controls = useAnimation();
-  const [exitX, setExitX] = useState<number>(0);
 
-  // Filter out the profiles we've already swiped past
-  const currentAthlete = ATHLETES[currentIndex];
+  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProfiles = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await apiClient.get('/api/discover');
+      setAthletes(res.data);
+      setCurrentIndex(0);
+    } catch {
+      setError('Failed to load profiles.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Fetch profiles on mount and when filters change
+  useEffect(() => {
+    fetchProfiles();
+  }, [filters, fetchProfiles]);
+
+  const currentAthlete = athletes[currentIndex];
 
   const handleSwipe = async (direction: 'left' | 'right') => {
     const xOff = direction === 'right' ? 300 : -300;
-    setExitX(xOff);
     await controls.start({
       x: xOff,
       opacity: 0,
@@ -91,10 +80,10 @@ export function Discovery() {
       transition: { duration: 0.3 }
     });
     setCurrentIndex((prev) => prev + 1);
-    controls.set({ x: 0, opacity: 1, rotate: 0 }); // Reset for next card
+    controls.set({ x: 0, opacity: 1, rotate: 0 });
   };
 
-  const onDragEnd = async (event: any, info: any) => {
+  const onDragEnd = async (_event: unknown, info: { offset: { x: number } }) => {
     if (info.offset.x > 100) {
       await handleSwipe('right');
     } else if (info.offset.x < -100) {
@@ -120,7 +109,7 @@ export function Discovery() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans flex flex-col overflow-hidden">
       <Navbar />
-      
+
       {/* Filter Button - Top Left */}
       <div className="fixed top-24 left-4 z-20">
         <button
@@ -132,14 +121,36 @@ export function Discovery() {
           <Sliders className="w-5 h-5 group-hover:text-purple-300 transition-colors" />
         </button>
       </div>
-      
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-24 relative z-10">
-        
+
         {/* Card Container */}
         <div className="w-full max-w-[420px] relative">
-          
-          {currentAthlete ? (
+
+          {loading ? (
+            /* Loading State */
+            <div className="w-full h-[600px] flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-3xl shadow-xl backdrop-blur-md">
+              <Loader2 className="w-10 h-10 text-purple-400 animate-spin mb-4" />
+              <p className="text-white/50 text-sm">Finding athletes near you...</p>
+            </div>
+          ) : error ? (
+            /* Error State */
+            <div className="w-full h-[600px] flex flex-col items-center justify-center bg-white/5 border border-white/10 rounded-3xl shadow-xl backdrop-blur-md text-center p-8">
+              <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
+                <X className="w-10 h-10 text-rose-400 opacity-70" />
+              </div>
+              <h3 className="text-xl font-bold font-heading mb-2">Something went wrong</h3>
+              <p className="text-white/60 text-sm max-w-xs mb-6">{error}</p>
+              <button
+                onClick={fetchProfiles}
+                className="flex items-center gap-2 px-6 py-3 bg-purple-500/30 hover:bg-purple-500/50 border border-purple-400/30 rounded-xl text-sm font-semibold transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try Again
+              </button>
+            </div>
+          ) : currentAthlete ? (
             <motion.div
               drag="x"
               dragConstraints={{ left: 0, right: 0 }}
@@ -152,15 +163,15 @@ export function Discovery() {
             >
               {/* Top Section - Large Photo (~70% visually) */}
               <div className="relative h-[400px] w-full shrink-0">
-                <ImageWithFallback 
-                  src={currentAthlete.image} 
+                <ImageWithFallback
+                  src={currentAthlete.image}
                   alt={currentAthlete.name}
                   className="w-full h-full object-cover"
                 />
-                
+
                 {/* Gradient Overlay for Text Readability */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/10"></div>
-                
+
                 {/* Optional Tag (New today / Recently active) */}
                 {currentAthlete.tag && (
                   <div className="absolute top-4 left-4 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-white shadow-sm border border-white/10">
@@ -182,7 +193,7 @@ export function Discovery() {
 
               {/* Bottom Section - Sports & Training Details */}
               <div className="p-6 bg-[#210c4a]/90 flex-1 flex flex-col justify-between border-t border-white/10">
-                
+
                 <div className="space-y-4">
                   {/* Sports List */}
                   <div>
@@ -233,16 +244,16 @@ export function Discovery() {
 
           {/* Swipe Buttons (Outside Card to remain stationary) */}
           <div className="flex justify-center items-center gap-8 mt-8 pb-8">
-            <button 
+            <button
               onClick={() => handleSwipe('left')}
-              disabled={!currentAthlete}
+              disabled={!currentAthlete || loading}
               className="w-16 h-16 bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white/70 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed group"
             >
               <X className="w-7 h-7 group-hover:text-red-400 transition-colors" />
             </button>
-            <button 
+            <button
               onClick={() => handleSwipe('right')}
-              disabled={!currentAthlete}
+              disabled={!currentAthlete || loading}
               className="w-20 h-20 bg-gradient-to-tr from-pink-500 to-rose-400 rounded-full flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 shadow-2xl shadow-rose-500/30 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
             >
               <Heart className="w-10 h-10 fill-current" />
@@ -258,7 +269,6 @@ export function Discovery() {
         onClose={() => setIsSettingsOpen(false)}
         onSave={(newFilters) => {
           setFilters(newFilters);
-          setCurrentIndex(0); // Reset to start when filters change
         }}
         initialFilters={filters}
       />

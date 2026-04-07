@@ -100,15 +100,33 @@ CREATE TABLE sports (
 );
 
 INSERT INTO sports (sport_name) VALUES
-    ('Basketball'),
-    ('Combat Sports'),
-    ('CrossFit'),
-    ('Cycling'),
+    -- Team Sports
     ('Football'),
+    ('Basketball'),
     ('Rugby'),
-    ('Running'),
+    ('Volleyball'),
+    ('Hockey'),
+    -- Combat & Strength
+    ('Boxing'),
+    ('MMA'),
+    ('CrossFit'),
+    -- Water Sports
     ('Swimming'),
-    ('Tennis');
+    ('Surfing'),
+    ('Rowing'),
+    -- Outdoor & Endurance
+    ('Running'),
+    ('Trail Running'),
+    ('Cycling'),
+    ('Triathlon'),
+    ('Skiing'),
+    -- Individual Sports
+    ('Tennis'),
+    ('Golf'),
+    ('Gymnastics'),
+    ('Yoga'),
+    ('Rock Climbing'),
+    ('Hiking');
 
 -- ------------------------------------------------------------
 -- Table 8: Skill Levels (lookup)
@@ -178,16 +196,22 @@ INSERT INTO relationship_goals (goal_name) VALUES
 -- Table 12: Preferences
 -- ------------------------------------------------------------
 CREATE TABLE preferences (
-    user_id         INT NOT NULL,
-    gender_id       INT NOT NULL,
-    min_age         INT NOT NULL DEFAULT 18,
-    max_age         INT NOT NULL DEFAULT 99,
-    max_distance_km INT NULL,
-    goal_id         INT NOT NULL,
+    user_id                INT     NOT NULL,
+    gender_id              INT     NOT NULL,
+    min_age                INT     NOT NULL DEFAULT 18,
+    max_age                INT     NOT NULL DEFAULT 99,
+    max_distance_km        INT     NULL,
+    goal_id                INT     NOT NULL,
+    min_skill_level_id     INT     NULL,
+    preferred_frequency_id INT     NULL,
+    min_photos             INT     NOT NULL DEFAULT 1,
+    show_out_of_range      BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (user_id),
-    CONSTRAINT fk_preferences_user   FOREIGN KEY (user_id)   REFERENCES users               (user_id),
-    CONSTRAINT fk_preferences_gender FOREIGN KEY (gender_id) REFERENCES genders             (gender_id),
-    CONSTRAINT fk_preferences_goal   FOREIGN KEY (goal_id)   REFERENCES relationship_goals  (goal_id)
+    CONSTRAINT fk_preferences_user      FOREIGN KEY (user_id)                REFERENCES users                (user_id),
+    CONSTRAINT fk_preferences_gender    FOREIGN KEY (gender_id)              REFERENCES genders              (gender_id),
+    CONSTRAINT fk_preferences_goal      FOREIGN KEY (goal_id)                REFERENCES relationship_goals   (goal_id),
+    CONSTRAINT fk_preferences_skill     FOREIGN KEY (min_skill_level_id)     REFERENCES skill_levels         (skill_level_id),
+    CONSTRAINT fk_preferences_frequency FOREIGN KEY (preferred_frequency_id) REFERENCES training_frequencies (frequency_id)
 );
 
 -- ------------------------------------------------------------
@@ -382,3 +406,4 @@ CREATE TABLE complaints (
 ALTER TABLE notifications
     ADD CONSTRAINT fk_notifications_complaint
     FOREIGN KEY (complaint_id) REFERENCES complaints (complaint_id);
+

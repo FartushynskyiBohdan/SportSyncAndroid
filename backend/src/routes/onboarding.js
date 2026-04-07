@@ -324,6 +324,130 @@ router.post('/onboarding/preferences', auth, async (req, res) => {
   }
 });
 
+// GET /api/preferences
+router.get('/preferences', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const [rows] = await db.execute(
+      `SELECT
+         p.gender_id,
+         p.min_age,
+         p.max_age,
+         p.max_distance_km,
+         p.goal_id,
+         p.min_skill_level_id,
+         p.preferred_frequency_id,
+         p.min_photos,
+         p.show_out_of_range
+       FROM preferences p
+       WHERE p.user_id = ?`,
+      [userId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'No preferences found.' });
+    }
+
+    const pref = rows[0];
+
+    const [sportRows] = await db.execute(
+      'SELECT sport_id FROM preference_sports WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({
+      gender_id:              pref.gender_id,
+      min_age:                pref.min_age,
+      max_age:                pref.max_age,
+      max_distance_km:        pref.max_distance_km,
+      goal_id:                pref.goal_id,
+      min_skill_level_id:     pref.min_skill_level_id,
+      preferred_frequency_id: pref.preferred_frequency_id,
+      min_photos:             pref.min_photos,
+      show_out_of_range:      pref.show_out_of_range,
+      sport_ids:              sportRows.map(r => r.sport_id),
+    });
+  } catch (error) {
+    console.error('Error fetching preferences:', error);
+    res.status(500).json({ error: 'Failed to fetch preferences.' });
+  }
+});
+
+// PUT /api/preferences
+router.put('/preferences', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const {
+      gender_id,
+      min_age,
+      max_age,
+      max_distance_km,
+      min_skill_level_id,
+      preferred_frequency_id,
+      min_photos,
+      show_out_of_range,
+      sport_ids,
+    } = req.body;
+
+    if (!gender_id) {
+      return res.status(400).json({ error: 'gender_id is required.' });
+    }
+    if (!Number.isInteger(min_age) || !Number.isInteger(max_age) || min_age >= max_age) {
+      return res.status(400).json({ error: 'Invalid age range.' });
+    }
+    if (!Array.isArray(sport_ids)) {
+      return res.status(400).json({ error: 'sport_ids must be an array.' });
+    }
+
+    // Upsert preferences. goal_id is intentionally excluded from the UPDATE clause
+    // so it is never overwritten by discovery settings. On INSERT it defaults to 1.
+    await db.execute(
+      `INSERT INTO preferences
+         (user_id, gender_id, min_age, max_age, max_distance_km,
+          goal_id, min_skill_level_id, preferred_frequency_id, min_photos, show_out_of_range)
+       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         gender_id              = VALUES(gender_id),
+         min_age                = VALUES(min_age),
+         max_age                = VALUES(max_age),
+         max_distance_km        = VALUES(max_distance_km),
+         min_skill_level_id     = VALUES(min_skill_level_id),
+         preferred_frequency_id = VALUES(preferred_frequency_id),
+         min_photos             = VALUES(min_photos),
+         show_out_of_range      = VALUES(show_out_of_range)`,
+      [
+        userId,
+        gender_id,
+        min_age,
+        max_age,
+        max_distance_km ?? null,
+        min_skill_level_id     ? Number(min_skill_level_id)     : null,
+        preferred_frequency_id ? Number(preferred_frequency_id) : null,
+        min_photos ?? 1,
+        show_out_of_range ? 1 : 0,
+      ]
+    );
+
+    // Replace preference_sports. Empty array is valid (clears the sport filter).
+    await db.execute('DELETE FROM preference_sports WHERE user_id = ?', [userId]);
+    for (const sport_id of sport_ids) {
+      await db.execute(
+        'INSERT INTO preference_sports (user_id, sport_id) VALUES (?, ?)',
+        [userId, Number(sport_id)]
+      );
+    }
+
+    res.json({ message: 'Preferences saved successfully.' });
+  } catch (error) {
+    console.error('Error saving preferences:', error);
+    res.status(500).json({ error: 'Failed to save preferences.' });
+  }
+});
+
 // PATCH /api/users/onboarding-complete
 router.patch('/users/onboarding-complete', auth, async (req, res) => {
   try {

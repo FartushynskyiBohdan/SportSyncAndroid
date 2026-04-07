@@ -47,28 +47,33 @@ interface DiscoverySettingsProps {
 /* ─── Sport emoji map ─── */
 
 const SPORT_ICONS: Record<string, string> = {
-  Football: '⚽',
-  Basketball: '🏀',
-  Rugby: '🏉',
-  Volleyball: '🏐',
-  Hockey: '🏒',
-  Boxing: '🥊',
-  MMA: '🥋',
-  CrossFit: '🏋️',
-  Swimming: '🏊',
-  Surfing: '🏄',
-  Rowing: '🚣',
-  Running: '🏃',
+  // Team
+  Football:        '⚽',
+  Basketball:      '🏀',
+  Rugby:           '🏉',
+  Volleyball:      '🏐',
+  Hockey:          '🏒',
+  // Combat / Strength
+  Boxing:          '🥊',
+  MMA:             '🥋',
+  CrossFit:        '🏋️',
+  // Water
+  Swimming:        '🏊',
+  Surfing:         '🏄',
+  Rowing:          '🚣',
+  // Outdoor / Endurance
+  Running:         '🏃',
   'Trail Running': '🥾',
-  Cycling: '🚴',
-  Triathlon: '🏅',
-  Skiing: '⛷️',
-  Tennis: '🎾',
-  Golf: '⛳',
-  Gymnastics: '🤸',
-  Yoga: '🧘',
+  Cycling:         '🚴',
+  Triathlon:       '🏅',
+  Skiing:          '⛷️',
+  // Individual
+  Tennis:          '🎾',
+  Golf:            '⛳',
+  Gymnastics:      '🤸',
+  Yoga:            '🧘',
   'Rock Climbing': '🧗',
-  Hiking: '🥾',
+  Hiking:          '🥾',
 };
 
 /* ─── Toggle Switch ─── */
@@ -266,6 +271,16 @@ function SingleSlider({
   );
 }
 
+/* ─── Sport groups (same order as onboarding) ─── */
+
+const SPORT_GROUPS: { label: string; sports: string[] }[] = [
+  { label: 'Team Sports',         sports: ['Football', 'Basketball', 'Rugby', 'Volleyball', 'Hockey'] },
+  { label: 'Combat & Strength',   sports: ['Boxing', 'MMA', 'CrossFit'] },
+  { label: 'Water Sports',        sports: ['Swimming', 'Surfing', 'Rowing'] },
+  { label: 'Outdoor & Endurance', sports: ['Running', 'Trail Running', 'Cycling', 'Triathlon', 'Skiing'] },
+  { label: 'Individual Sports',   sports: ['Tennis', 'Golf', 'Gymnastics', 'Yoga', 'Rock Climbing', 'Hiking'] },
+];
+
 /* ─── Sport Selector ─── */
 
 function SportSelector({
@@ -280,27 +295,38 @@ function SportSelector({
   const selectedSportSet = new Set(selectedSports);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <label className="text-lg text-white font-medium">Interested In Sports</label>
-      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
-        {sports.map((sport) => (
-          <button
-            key={sport.id}
-            onClick={() => onToggle(String(sport.id))}
-            className={`p-3 rounded-xl transition-all text-left flex items-center gap-2 ${
-              selectedSportSet.has(String(sport.id))
-                ? 'bg-purple-500/40 border border-purple-400'
-                : 'bg-white/5 border border-white/10 hover:bg-white/10'
-            }`}
-          >
-            <span className="text-xl">{SPORT_ICONS[sport.name] || '🏅'}</span>
-            <span className="text-sm text-white/90">{sport.name}</span>
-            {selectedSportSet.has(String(sport.id)) && (
-              <span className="ml-auto text-purple-300">✓</span>
-            )}
-          </button>
-        ))}
-      </div>
+      {SPORT_GROUPS.map((group) => {
+        const groupSports = sports.filter(s => group.sports.includes(s.name));
+        if (groupSports.length === 0) return null;
+        return (
+          <div key={group.label}>
+            <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-2">
+              {group.label}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {groupSports.map((sport) => (
+                <button
+                  key={sport.id}
+                  onClick={() => onToggle(String(sport.id))}
+                  className={`p-3 rounded-xl transition-all text-left flex items-center gap-2 ${
+                    selectedSportSet.has(String(sport.id))
+                      ? 'bg-purple-500/40 border border-purple-400'
+                      : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                  }`}
+                >
+                  <span className="text-xl">{SPORT_ICONS[sport.name] || '🏅'}</span>
+                  <span className="text-sm text-white/90">{sport.name}</span>
+                  {selectedSportSet.has(String(sport.id)) && (
+                    <span className="ml-auto text-purple-300">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -332,6 +358,8 @@ export default function DiscoverySettings({
   const [skillLevels, setSkillLevels] = useState<SkillLevel[]>([]);
   const [frequencies, setFrequencies] = useState<Frequency[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving]       = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Mock data for fallback
   const MOCK_GENDERS: Gender[] = [
@@ -380,43 +408,79 @@ export default function DiscoverySettings({
     { id: 5, name: 'Daily' },
   ];
 
-  // Fetch filter options
+  // Fetch filter options and saved preferences
   useEffect(() => {
     if (!isOpen) return;
 
-    const fetchData = async () => {
-      try {
-        setLoading(true);
+    setSaveError(null);
 
-        const [gendersRes, sportsRes, skillRes, freqRes] = await Promise.all([
+    const fetchData = async () => {
+      setLoading(true);
+
+      const [gendersResult, sportsResult, skillResult, freqResult, prefsResult] =
+        await Promise.allSettled([
           apiClient.get('/api/genders'),
           apiClient.get('/api/sports'),
           apiClient.get('/api/skill-levels'),
           apiClient.get('/api/frequencies'),
+          apiClient.get('/api/preferences'),
         ]);
 
-        setGenders(gendersRes.data);
-        setSports(sportsRes.data);
-        setSkillLevels(skillRes.data);
-        setFrequencies(freqRes.data);
-      } catch (err) {
-        // Use mock data as fallback
-        console.warn('Failed to load from API, using mock data:', err);
-        setGenders(MOCK_GENDERS);
-        setSports(MOCK_SPORTS);
-        setSkillLevels(MOCK_SKILL_LEVELS);
-        setFrequencies(MOCK_FREQUENCIES);
-      } finally {
-        setLoading(false);
+      // Lookup data — fall back to mock per-endpoint on failure
+      setGenders(gendersResult.status === 'fulfilled' ? gendersResult.value.data : MOCK_GENDERS);
+      setSports(sportsResult.status === 'fulfilled' ? sportsResult.value.data : MOCK_SPORTS);
+      setSkillLevels(skillResult.status === 'fulfilled' ? skillResult.value.data : MOCK_SKILL_LEVELS);
+      setFrequencies(freqResult.status === 'fulfilled' ? freqResult.value.data : MOCK_FREQUENCIES);
+
+      // Saved preferences — populate filters if found, otherwise keep defaults
+      if (prefsResult.status === 'fulfilled' && prefsResult.value?.data) {
+        const p = prefsResult.value.data;
+        setFilters({
+          interestedInGender: String(p.gender_id),
+          minAge:             p.min_age,
+          maxAge:             p.max_age,
+          maxDistance:        p.max_distance_km ?? 25,
+          selectedSports:     (p.sport_ids as number[]).map(String),
+          minSkillLevel:      p.min_skill_level_id != null ? String(p.min_skill_level_id) : '1',
+          preferredFrequency: p.preferred_frequency_id != null ? String(p.preferred_frequency_id) : '2',
+          minPhotos:          p.min_photos ?? 1,
+          showOutOfRange:     !!p.show_out_of_range,
+        });
       }
+
+      setLoading(false);
     };
 
     fetchData();
   }, [isOpen]);
 
-  const handleSave = () => {
-    onSave(filters);
-    onClose();
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      await apiClient.put('/api/preferences', {
+        gender_id:              Number(filters.interestedInGender),
+        min_age:                filters.minAge,
+        max_age:                filters.maxAge,
+        max_distance_km:        filters.maxDistance,
+        min_skill_level_id:     filters.minSkillLevel     ? Number(filters.minSkillLevel)     : null,
+        preferred_frequency_id: filters.preferredFrequency ? Number(filters.preferredFrequency) : null,
+        min_photos:             filters.minPhotos,
+        show_out_of_range:      filters.showOutOfRange,
+        sport_ids:              filters.selectedSports.map(Number),
+      });
+
+      onSave(filters);
+      onClose();
+    } catch (err) {
+      const message =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error
+        ?? 'Failed to save settings. Please try again.';
+      setSaveError(message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -560,7 +624,7 @@ export default function DiscoverySettings({
 
               {/* Training Frequency */}
               <div className="space-y-3">
-                <label className="text-lg text-white font-medium">Training Frequency</label>
+                <label className="text-lg text-white font-medium">Training Frequency (Min)</label>
                 <select
                   value={filters.preferredFrequency}
                   onChange={(e) =>
@@ -591,12 +655,16 @@ export default function DiscoverySettings({
 
         {/* Footer - Save Button */}
         <div className="sticky bottom-0 p-6 border-t border-white/10 bg-slate-900/80 backdrop-blur-sm space-y-3">
+          {saveError && (
+            <p className="text-sm text-red-400 text-center">{saveError}</p>
+          )}
           <button
             onClick={handleSave}
-            disabled={loading}
-            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={loading || saving}
+            className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Save Settings
+            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+            {saving ? 'Saving…' : 'Save Settings'}
           </button>
           <button
             onClick={onClose}
