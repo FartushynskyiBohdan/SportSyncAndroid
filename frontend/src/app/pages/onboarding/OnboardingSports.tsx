@@ -288,10 +288,10 @@ export function OnboardingSports() {
     }));
 
     try {
-      await axios.post('/api/onboarding/sports', payload);
+      await api.post('/api/onboarding/sports', payload);
       navigate('/onboarding/photos');
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setApiError(
           err.response?.data?.message ??
           err.response?.data?.error ??

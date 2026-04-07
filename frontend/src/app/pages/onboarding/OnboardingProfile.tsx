@@ -306,7 +306,7 @@ export function OnboardingProfile() {
       });
       navigate('/onboarding/sports');
     } catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
+      if (isAxiosError(err)) {
         setApiError(
           err.response?.data?.message ??
           err.response?.data?.error ??

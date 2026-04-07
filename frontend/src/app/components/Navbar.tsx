@@ -37,8 +37,8 @@ export function Navbar() {
 
               {/* Links */}
               <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
-                <button onClick={() => navigate('/discovery')} className="hover:text-purple-300 transition-colors cursor-pointer">
-                  Browse Athletes
+                <button onClick={() => navigate('/discover')} className="hover:text-purple-300 transition-colors cursor-pointer">
+                  Discover Athletes
                 </button>
                 <button onClick={() => navigate('/matches')} className="hover:text-purple-300 transition-colors cursor-pointer">
                   Matches

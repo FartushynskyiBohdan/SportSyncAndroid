@@ -10,8 +10,13 @@ import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
 import { OnboardingPhotos } from "./pages/onboarding/OnboardingPhotos";
+import { OnboardingBio } from "./pages/onboarding/OnboardingBio";
+import { OnboardingPreferences } from "./pages/onboarding/OnboardingPreferences";
+import { OnboardingComplete } from "./pages/onboarding/OnboardingComplete";
+import { ProtectedRoute, AppRoute } from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
+  // Public routes
   {
     path: "/",
     Component: Home,
@@ -25,35 +30,31 @@ export const router = createBrowserRouter([
     Component: Signup,
   },
   {
-    path: "/discover",
-    Component: Discovery,
-  },
-  {
-    path: "/matches",
-    Component: Matches,
-  },
-  {
-    path: "/messages",
-    Component: Messages,
-  },
-  {
-    path: "/profile",
-    Component: Profile,
-  },
-  {
     path: "/design-system",
     Component: DesignSystem,
   },
+
+  // Auth required — onboarding pages
   {
-    path: "/onboarding/profile",
-    Component: OnboardingProfile,
+    Component: ProtectedRoute,
+    children: [
+      { path: "/onboarding/profile", Component: OnboardingProfile },
+      { path: "/onboarding/sports", Component: OnboardingSports },
+      { path: "/onboarding/photos", Component: OnboardingPhotos },
+      { path: "/onboarding/bio", Component: OnboardingBio },
+      { path: "/onboarding/preferences", Component: OnboardingPreferences },
+      { path: "/onboarding/complete", Component: OnboardingComplete },
+    ],
   },
+
+  // Auth + onboarding complete required — main app pages
   {
-    path: "/onboarding/sports",
-    Component: OnboardingSports,
-  },
-  {
-    path: "/onboarding/photos",
-    Component: OnboardingPhotos,
+    Component: AppRoute,
+    children: [
+      { path: "/discover", Component: Discovery },
+      { path: "/matches", Component: Matches },
+      { path: "/messages", Component: Messages },
+      { path: "/profile", Component: Profile },
+    ],
   },
 ]);

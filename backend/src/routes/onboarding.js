@@ -3,6 +3,7 @@ const path    = require('path');
 const fs      = require('fs');
 const multer  = require('multer');
 const db      = require('../config/database');
+const auth    = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -99,9 +100,9 @@ router.get('/frequencies', async (req, res) => {
 });
 
 // POST /api/onboarding/sports
-router.post('/onboarding/sports', async (req, res) => {
+router.post('/onboarding/sports', auth, async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const sports = req.body;
@@ -137,9 +138,9 @@ router.post('/onboarding/sports', async (req, res) => {
 });
 
 // POST /api/onboarding/photos
-router.post('/onboarding/photos', upload.array('photos', 6), async (req, res) => {
+router.post('/onboarding/photos', auth, upload.array('photos', 6), async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     if (!req.files || req.files.length === 0) {
@@ -175,9 +176,9 @@ router.post('/onboarding/photos', upload.array('photos', 6), async (req, res) =>
 });
 
 // PUT /api/onboarding/photos/order
-router.put('/onboarding/photos/order', async (req, res) => {
+router.put('/onboarding/photos/order', auth, async (req, res) => {
   try {
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Authentication required.' });
 
     const items = req.body;
@@ -199,8 +200,36 @@ router.put('/onboarding/photos/order', async (req, res) => {
   }
 });
 
+// POST /api/onboarding/bio
+router.post('/onboarding/bio', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const { bio } = req.body;
+
+    if (!bio || typeof bio !== 'string' || bio.trim().length < 20) {
+      return res.status(400).json({ error: 'Bio must be at least 20 characters.' });
+    }
+
+    if (bio.trim().length > 250) {
+      return res.status(400).json({ error: 'Bio must be 250 characters or fewer.' });
+    }
+
+    await db.execute(
+      `UPDATE profiles SET bio = ? WHERE user_id = ?`,
+      [bio.trim(), userId]
+    );
+
+    res.json({ message: 'Bio saved successfully.' });
+  } catch (error) {
+    console.error('Error saving bio:', error);
+    res.status(500).json({ error: 'Failed to save bio.' });
+  }
+});
+
 // POST /api/onboarding/profile
-router.post('/onboarding/profile', async (req, res) => {
+router.post('/onboarding/profile', auth, async (req, res) => {
   try {
     const { first_name, last_name, birth_date, gender_id, city_id } = req.body;
 
@@ -217,9 +246,7 @@ router.post('/onboarding/profile', async (req, res) => {
       return res.status(400).json({ error: 'You must be at least 18 years old.' });
     }
 
-    // TODO: Extract user_id from JWT auth middleware
-    // For now, expect user_id in the request (or from auth middleware later)
-    const userId = req.userId || 1; // TODO: remove fallback once auth middleware is wired up // set by auth middleware
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(401).json({ error: 'Authentication required.' });
@@ -238,6 +265,80 @@ router.post('/onboarding/profile', async (req, res) => {
   } catch (error) {
     console.error('Error saving profile:', error);
     res.status(500).json({ error: 'Failed to save profile.' });
+  }
+});
+
+// GET /api/goals
+router.get('/goals', async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT goal_id AS id, goal_name AS name FROM relationship_goals ORDER BY goal_id');
+    res.json(rows);
+  } catch (error) {
+    console.error('Error fetching goals:', error);
+    res.status(500).json({ error: 'Failed to fetch goals' });
+  }
+});
+
+// POST /api/onboarding/preferences
+router.post('/onboarding/preferences', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    const { gender_id, min_age, max_age, max_distance_km, goal_id, sports } = req.body;
+
+    if (!gender_id || !goal_id) {
+      return res.status(400).json({ error: 'Gender and relationship goal are required.' });
+    }
+
+    if (!Number.isInteger(min_age) || !Number.isInteger(max_age) || min_age >= max_age) {
+      return res.status(400).json({ error: 'Invalid age range.' });
+    }
+
+    if (!Array.isArray(sports) || sports.length === 0) {
+      return res.status(400).json({ error: 'At least one preferred sport is required.' });
+    }
+
+    // Upsert preferences
+    await db.execute(
+      `INSERT INTO preferences (user_id, gender_id, min_age, max_age, max_distance_km, goal_id)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE gender_id = VALUES(gender_id), min_age = VALUES(min_age),
+         max_age = VALUES(max_age), max_distance_km = VALUES(max_distance_km), goal_id = VALUES(goal_id)`,
+      [userId, gender_id, min_age, max_age, max_distance_km ?? null, goal_id]
+    );
+
+    // Replace preference_sports
+    await db.execute('DELETE FROM preference_sports WHERE user_id = ?', [userId]);
+    for (const sport_id of sports) {
+      await db.execute(
+        'INSERT INTO preference_sports (user_id, sport_id) VALUES (?, ?)',
+        [userId, sport_id]
+      );
+    }
+
+    res.json({ message: 'Preferences saved successfully.' });
+  } catch (error) {
+    console.error('Error saving preferences:', error);
+    res.status(500).json({ error: 'Failed to save preferences.' });
+  }
+});
+
+// PATCH /api/users/onboarding-complete
+router.patch('/users/onboarding-complete', auth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+
+    await db.execute(
+      'UPDATE users SET onboarding_complete = TRUE WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({ message: 'Onboarding marked as complete.' });
+  } catch (error) {
+    console.error('Error completing onboarding:', error);
+    res.status(500).json({ error: 'Failed to complete onboarding.' });
   }
 });
 

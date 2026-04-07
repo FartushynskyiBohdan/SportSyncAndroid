@@ -27,7 +27,14 @@ router.post('/login', async (req, res) => {
     // Generate JWT
     const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-    res.json({ token, user: { id: user.user_id, email: user.email } });
+    res.json({
+      token,
+      user: {
+        id: user.user_id,
+        email: user.email,
+        onboardingComplete: !!user.onboarding_complete,
+      },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error' });
@@ -37,7 +44,7 @@ router.post('/login', async (req, res) => {
 // Signup
 router.post('/signup', async (req, res) => {
   try {
-    const { email, password, firstName, lastName, birthDate, genderId, cityId } = req.body;
+    const { email, password } = req.body;
 
     // Check if user exists
     const [existing] = await db.execute('SELECT user_id FROM users WHERE email = ?', [email]);
@@ -48,7 +55,7 @@ router.post('/signup', async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user
+    // Insert user (profile is created during onboarding)
     const [userResult] = await db.execute(
       'INSERT INTO users (email, password_hash) VALUES (?, ?)',
       [email, hashedPassword]
@@ -56,16 +63,13 @@ router.post('/signup', async (req, res) => {
 
     const userId = userResult.insertId;
 
-    // Insert profile
-    await db.execute(
-      'INSERT INTO profiles (user_id, first_name, last_name, birth_date, gender_id, city_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [userId, firstName, lastName, birthDate, genderId, cityId]
-    );
-
     // Generate token
     const token = jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-    res.status(201).json({ token, user: { id: userId, email } });
+    res.status(201).json({
+      token,
+      user: { id: userId, email, onboardingComplete: false },
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Server error' });
