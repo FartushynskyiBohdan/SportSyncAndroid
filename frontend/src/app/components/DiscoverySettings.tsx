@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
-import { apiClient } from '../config/api';
+import apiClient from '../lib/api';
 
 /* ─── Types ─── */
 
@@ -389,10 +389,10 @@ export default function DiscoverySettings({
         setLoading(true);
 
         const [gendersRes, sportsRes, skillRes, freqRes] = await Promise.all([
-          apiClient.get('/genders'),
-          apiClient.get('/sports'),
-          apiClient.get('/skill-levels'),
-          apiClient.get('/frequencies'),
+          apiClient.get('/api/genders'),
+          apiClient.get('/api/sports'),
+          apiClient.get('/api/skill-levels'),
+          apiClient.get('/api/frequencies'),
         ]);
 
         setGenders(gendersRes.data);

@@ -1,8 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router';
 import { motion } from 'framer-motion';
-import { apiClient } from '../../config/api';
-import axios from 'axios';
+import apiClient, { isAxiosError } from '../../lib/api';
 import { ChevronDown, Loader2, AlertCircle } from 'lucide-react';
 
 /* ─── Types ─── */

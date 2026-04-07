@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { apiClient } from '../../config/api';
-import axios from 'axios';
+import apiClient from '../../lib/api';
 import { X, AlertCircle, Loader2, ImagePlus, Camera, User } from 'lucide-react';
 
 /* ─── Types ─── */

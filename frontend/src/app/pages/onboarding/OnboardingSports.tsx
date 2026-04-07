@@ -1,7 +1,7 @@
 import { useState, useEffect, useId } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { apiClient } from '../../config/api';
+import apiClient, { isAxiosError } from '../../lib/api';
 import { ChevronDown, Loader2, AlertCircle, Check } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -288,7 +288,7 @@ export function OnboardingSports() {
     }));
 
     try {
-      await api.post('/api/onboarding/sports', payload);
+      await apiClient.post('/api/onboarding/sports', payload);
       navigate('/onboarding/photos');
     } catch (err: unknown) {
       if (isAxiosError(err)) {
