@@ -76,26 +76,6 @@ const SPORT_ICONS: Record<string, string> = {
   Hiking:          '🥾',
 };
 
-/* ─── Toggle Switch ─── */
-
-function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (value: boolean) => void }) {
-  return (
-    <button
-      onClick={() => onChange(!enabled)}
-      className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
-        enabled ? 'bg-purple-500' : 'bg-white/20'
-      }`}
-      aria-label="Toggle option"
-    >
-      <motion.div
-        layout
-        className="h-5 w-5 rounded-full bg-white shadow-lg"
-        animate={{ x: enabled ? 20 : 2 }}
-        transition={{ duration: 0.2 }}
-      />
-    </button>
-  );
-}
 
 /* ─── Range Slider ─── */
 
@@ -292,41 +272,74 @@ function SportSelector({
   selectedSports: string[];
   onToggle: (sportId: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const selectedSportSet = new Set(selectedSports);
+  const selectedCount = selectedSports.length;
 
   return (
-    <div className="space-y-4">
-      <label className="text-lg text-white font-medium">Interested In Sports</label>
-      {SPORT_GROUPS.map((group) => {
-        const groupSports = sports.filter(s => group.sports.includes(s.name));
-        if (groupSports.length === 0) return null;
-        return (
-          <div key={group.label}>
-            <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-2">
-              {group.label}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {groupSports.map((sport) => (
-                <button
-                  key={sport.id}
-                  onClick={() => onToggle(String(sport.id))}
-                  className={`p-3 rounded-xl transition-all text-left flex items-center gap-2 ${
-                    selectedSportSet.has(String(sport.id))
-                      ? 'bg-purple-500/40 border border-purple-400'
-                      : 'bg-white/5 border border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  <span className="text-xl">{SPORT_ICONS[sport.name] || '🏅'}</span>
-                  <span className="text-sm text-white/90">{sport.name}</span>
-                  {selectedSportSet.has(String(sport.id)) && (
-                    <span className="ml-auto text-purple-300">✓</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
+    <div className="space-y-3">
+      {/* Collapsible header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between group"
+      >
+        <span className="text-lg text-white font-medium">Interested In Sports</span>
+        <div className="flex items-center gap-2">
+          {selectedCount > 0 && (
+            <span className="text-xs font-semibold bg-purple-500/40 border border-purple-400/60 text-purple-200 px-2 py-0.5 rounded-full">
+              {selectedCount} selected
+            </span>
+          )}
+          <motion.span
+            animate={{ rotate: open ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="text-white/40 group-hover:text-white/70 transition-colors"
+          >
+            ▾
+          </motion.span>
+        </div>
+      </button>
+
+      {/* Collapsible content */}
+      <motion.div
+        initial={false}
+        animate={{ height: open ? 'auto' : 0, opacity: open ? 1 : 0 }}
+        transition={{ duration: 0.25, ease: 'easeInOut' }}
+        className="overflow-hidden"
+      >
+        <div className="space-y-4">
+          {SPORT_GROUPS.map((group) => {
+            const groupSports = sports.filter(s => group.sports.includes(s.name));
+            if (groupSports.length === 0) return null;
+            return (
+              <div key={group.label}>
+                <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-2">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {groupSports.map((sport) => (
+                    <button
+                      key={sport.id}
+                      onClick={() => onToggle(String(sport.id))}
+                      className={`p-3 rounded-xl transition-all text-left flex items-center gap-2 ${
+                        selectedSportSet.has(String(sport.id))
+                          ? 'bg-purple-500/40 border border-purple-400'
+                          : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                      }`}
+                    >
+                      <span className="text-xl">{SPORT_ICONS[sport.name] || '🏅'}</span>
+                      <span className="text-sm text-white/90">{sport.name}</span>
+                      {selectedSportSet.has(String(sport.id)) && (
+                        <span className="ml-auto text-purple-300">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -566,8 +579,8 @@ export default function DiscoverySettings({
                 }
               />
 
-              {/* Show Out of Range */}
-              <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
+              {/* Show Out of Range — temporarily disabled */}
+              {/* <div className="flex items-center justify-between p-4 bg-white/5 border border-white/10 rounded-xl">
                 <label className="text-sm text-white/70">
                   Show people slightly outside my age range if I run out of profiles
                 </label>
@@ -575,7 +588,7 @@ export default function DiscoverySettings({
                   enabled={filters.showOutOfRange}
                   onChange={(value) => setFilters({ ...filters, showOutOfRange: value })}
                 />
-              </div>
+              </div> */}
 
               {/* Distance Radius */}
               <SingleSlider
