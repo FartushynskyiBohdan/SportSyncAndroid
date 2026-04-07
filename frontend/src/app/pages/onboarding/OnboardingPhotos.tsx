@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import api from '@/app/lib/api';
+import { apiClient } from '../../config/api';
+import axios from 'axios';
 import { X, AlertCircle, Loader2, ImagePlus, Camera, User } from 'lucide-react';
 
 /* ─── Types ─── */
@@ -83,7 +84,7 @@ export function OnboardingPhotos() {
     if (allDone.length === 0) return;
 
     const t = setTimeout(() => {
-      api.put('/api/onboarding/photos/order',
+      apiClient.put('/api/onboarding/photos/order',
         allDone.map((p, i) => ({ photo_id: p.photo_id!, display_order: i }))
       ).catch(() => {});
     }, 600);
@@ -103,7 +104,7 @@ export function OnboardingPhotos() {
     fd.append('display_order', String(order));
 
     try {
-      const res = await api.post<{ photo_id: number; photo_url: string; display_order: number }[]>(
+      const res = await apiClient.post<{ photo_id: number; photo_url: string; display_order: number }[]>(
         '/api/onboarding/photos', fd,
         {
           headers: { 'Content-Type': 'multipart/form-data' },
