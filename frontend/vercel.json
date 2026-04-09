@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://photo-phase-constitutes-posters.trycloudflare.com/api/:path*"
+    }
+  ]
+}
