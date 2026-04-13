@@ -130,9 +130,8 @@ export function Signup() {
 
             {/* Footer */}
             <div className="mt-8 text-center text-sm text-purple-200/60">
-                <Link to="/login" className="text-white font-medium hover:underline hover:text-purple-200 transition-colors">
-                  Already have an account? Log in
-                </Link>
+                Already have an account?{' '} 
+                <Link to="/login" className="text-white font-medium hover:underline hover:text-purple-200 transition-colors">Log in</Link>
             </div>
         </motion.div>
       </div>
