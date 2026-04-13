@@ -1,4 +1,4 @@
-import { Search, MessageSquare, Bell, User, Menu } from 'lucide-react';
+import { Search, MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
 
 export function Navbar() {
@@ -53,7 +53,10 @@ export function Navbar() {
                 <button className="hover:text-purple-300 transition-colors">
                   <Bell className="w-5 h-5" />
                 </button>
-                <button className="hover:text-purple-300 transition-colors">
+                <button onClick={() => navigate('/settings')} className="hover:text-purple-300 transition-colors">
+                  <Settings className="w-5 h-5" />
+                </button>
+                <button onClick={() => navigate('/profile')} className="hover:text-purple-300 transition-colors">
                   <User className="w-5 h-5" />
                 </button>
               </div>

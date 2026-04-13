@@ -6,6 +6,7 @@ import { Discovery } from "./pages/Discover";
 import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
+import { Settings } from "./pages/Settings";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
       { path: "/matches", Component: Matches },
       { path: "/messages", Component: Messages },
       { path: "/profile", Component: Profile },
+      { path: "/settings", Component: Settings },
     ],
   },
 ]);
