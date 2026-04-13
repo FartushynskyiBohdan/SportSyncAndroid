@@ -61,7 +61,7 @@ export function Login() {
                   <div className="text-red-400 text-sm text-center">{error}</div>
                 )}
                 <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email or Username</label>
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email</label>
                     <input 
                         type="text" 
                         id="email"
