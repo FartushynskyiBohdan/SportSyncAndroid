@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   Bell,
@@ -6,10 +6,8 @@ import {
   Lock,
   LogOut,
   type LucideIcon,
-  Save,
   Settings as SettingsIcon,
   Shield,
-  SlidersHorizontal,
   User,
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
@@ -74,33 +72,28 @@ function SettingRow({
 
 export function Settings() {
   const navigate = useNavigate();
-  const { user, updateUser, logout } = useAuth();
+  const { user, logout } = useAuth();
   const [email, setEmail] = useState(user?.email ?? "");
-  const [displayName, setDisplayName] = useState("Nathan");
-  const [city, setCity] = useState("Dublin");
-  const [distance, setDistance] = useState("25 km");
+  const [displayName, setDisplayName] = useState("");
+  const [city, setCity] = useState("");
+  const [passwordInput, setPasswordInput] = useState("");
+  const [accountUnlocked, setAccountUnlocked] = useState(false);
+  const [passwordPrompt, setPasswordPrompt] = useState("");
   const [matchAlerts, setMatchAlerts] = useState(true);
   const [messageAlerts, setMessageAlerts] = useState(true);
-  const [trainingReminders, setTrainingReminders] = useState(false);
-  const [emailDigest, setEmailDigest] = useState(true);
-  const [showDistance, setShowDistance] = useState(true);
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [profileVisible, setProfileVisible] = useState(true);
   const [readReceipts, setReadReceipts] = useState(true);
-  const [saved, setSaved] = useState(false);
 
-  useEffect(() => {
-    if (!saved) return;
-
-    const timeout = window.setTimeout(() => setSaved(false), 2500);
-    return () => window.clearTimeout(timeout);
-  }, [saved]);
-
-  const handleSave = () => {
-    if (user) {
-      updateUser({ ...user, email });
+  const handleUnlock = () => {
+    if (!passwordInput.trim()) {
+      setPasswordPrompt("Enter your current password before unlocking account fields.");
+      setAccountUnlocked(false);
+      return;
     }
-    setSaved(true);
+
+    setPasswordPrompt(
+      "Fields unlocked locally. Backend verification and persistence are not wired yet."
+    );
+    setAccountUnlocked(true);
   };
 
   const handleLogout = () => {
@@ -130,36 +123,58 @@ export function Settings() {
               <div>
                 <h1 className="text-4xl font-black tracking-tight md:text-5xl">Settings</h1>
                 <p className="mt-1 text-sm text-white/60">
-                  Tune your account, discovery preferences, and notifications.
+                  Account access, notification preferences, and privacy controls.
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {saved && (
-              <span className="rounded-full border border-emerald-400/30 bg-emerald-500/15 px-4 py-2 text-sm font-medium text-emerald-200">
-                Changes saved
-              </span>
-            )}
-            <Button
-              onClick={handleSave}
-              className="rounded-2xl bg-white text-purple-950 hover:bg-purple-100"
-            >
-              <Save className="h-4 w-4" />
-              Save changes
-            </Button>
+          <div className="max-w-md rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            Profile details in the database live across `users` and `profiles`. This page now avoids fake saved edits until the backend endpoints exist.
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
+        <div className="grid gap-6 xl:grid-cols-[1.15fr_0.95fr]">
           <div className="space-y-6">
             <Panel
               icon={User}
               title="Account"
-              description="Keep the essentials current so matches know who they are meeting."
+              description="Sensitive details stay locked until the current password is entered."
             >
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+                <div className="flex items-start gap-3">
+                  <Lock className="mt-0.5 h-4 w-4 text-white/70" />
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-white">Account verification</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-white/55">
+                      Email comes from the authenticated user record. Name and city belong to the profile record, so we should not expose editable fields casually.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
+                  <Input
+                    id="currentPassword"
+                    type="password"
+                    value={passwordInput}
+                    onChange={(event) => setPasswordInput(event.target.value)}
+                    placeholder="Enter current password"
+                    className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
+                  />
+                  <Button
+                    onClick={handleUnlock}
+                    className="h-11 rounded-2xl bg-white text-purple-950 hover:bg-purple-100"
+                  >
+                    Unlock fields
+                  </Button>
+                </div>
+
+                {passwordPrompt && (
+                  <p className="mt-3 text-sm text-white/60">{passwordPrompt}</p>
+                )}
+              </div>
+
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div>
                   <label htmlFor="displayName" className="mb-2 block text-sm font-medium text-white/70">
                     Display name
@@ -168,6 +183,8 @@ export function Settings() {
                     id="displayName"
                     value={displayName}
                     onChange={(event) => setDisplayName(event.target.value)}
+                    disabled={!accountUnlocked}
+                    placeholder={accountUnlocked ? "Enter display name" : "Locked"}
                     className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
                   />
                 </div>
@@ -179,6 +196,8 @@ export function Settings() {
                     id="city"
                     value={city}
                     onChange={(event) => setCity(event.target.value)}
+                    disabled={!accountUnlocked}
+                    placeholder={accountUnlocked ? "Enter home city" : "Locked"}
                     className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
                   />
                 </div>
@@ -193,73 +212,41 @@ export function Settings() {
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
+                  disabled={!accountUnlocked}
+                  placeholder={accountUnlocked ? "Enter email address" : "Locked"}
                   className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
                 />
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Button
-                  variant="outline"
-                  onClick={() => navigate("/profile")}
-                  className="rounded-2xl border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-                >
-                  Edit profile
-                </Button>
-                <Button
-                  variant="outline"
-                  className="rounded-2xl border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
-                >
-                  Manage photos
-                </Button>
+              <div className="mt-5 rounded-2xl border border-amber-400/15 bg-amber-500/10 p-4">
+                <p className="text-sm font-semibold text-white">Persistence status</p>
+                <p className="mt-1 text-sm leading-relaxed text-white/60">
+                  We have schema support for `users.email` and profile fields in `profiles`, but there is no account update endpoint yet, so edits here are intentionally not saved.
+                </p>
               </div>
             </Panel>
 
             <Panel
-              icon={SlidersHorizontal}
-              title="Discovery"
-              description="Decide how visible you are and how selective your athlete feed should feel."
+              icon={Shield}
+              title="Privacy"
+              description="Small messaging-related controls that make sense for the current product scope."
             >
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="distance" className="mb-2 block text-sm font-medium text-white/70">
-                    Max distance
-                  </label>
-                  <Input
-                    id="distance"
-                    value={distance}
-                    onChange={(event) => setDistance(event.target.value)}
-                    className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
-                  />
-                </div>
-                <div className="rounded-2xl border border-white/8 bg-black/10 px-4 py-4">
-                  <p className="text-sm font-semibold text-white">Profile visibility</p>
-                  <p className="mt-1 text-sm text-white/55">
-                    {profileVisible
-                      ? "Your profile is visible in discovery."
-                      : "Your profile is paused and hidden from discovery."}
-                  </p>
-                </div>
+              <div className="space-y-3">
+                <SettingRow
+                  title="Read receipts"
+                  description="Control whether people can see when you have read their latest message."
+                  checked={readReceipts}
+                  onCheckedChange={setReadReceipts}
+                />
               </div>
 
-              <div className="mt-4 space-y-3">
-                <SettingRow
-                  title="Visible in discovery"
-                  description="Pause swiping while you focus on training, travel, or recovery."
-                  checked={profileVisible}
-                  onCheckedChange={setProfileVisible}
-                />
-                <SettingRow
-                  title="Show distance on profile"
-                  description="Display how far away you are to help coordinate workouts and dates."
-                  checked={showDistance}
-                  onCheckedChange={setShowDistance}
-                />
-                <SettingRow
-                  title="Prioritize verified athletes"
-                  description="Lean your feed toward people with completed profiles and verified activity."
-                  checked={verifiedOnly}
-                  onCheckedChange={setVerifiedOnly}
-                />
+              <Separator className="my-5 bg-white/10" />
+
+              <div className="rounded-2xl border border-white/8 bg-black/10 p-4">
+                <h3 className="text-sm font-semibold text-white">Product scope note</h3>
+                <p className="mt-1 text-sm leading-relaxed text-white/60">
+                  Discovery filtering already lives on the discovery page, so it has been removed from settings to avoid duplicating controls.
+                </p>
               </div>
             </Panel>
           </div>
@@ -268,68 +255,28 @@ export function Settings() {
             <Panel
               icon={Bell}
               title="Notifications"
-              description="Keep the important stuff loud and the rest calm."
+              description="Only the notification types that exist in the current schema are represented here."
             >
               <div className="space-y-3">
                 <SettingRow
                   title="New match alerts"
-                  description="Get notified as soon as another athlete matches with you."
+                  description="Receive alerts when a mutual match is created."
                   checked={matchAlerts}
                   onCheckedChange={setMatchAlerts}
                 />
                 <SettingRow
                   title="Message notifications"
-                  description="Stay on top of conversations and incoming training invites."
+                  description="Receive alerts when a new message arrives in an existing match."
                   checked={messageAlerts}
                   onCheckedChange={setMessageAlerts}
                 />
-                <SettingRow
-                  title="Training reminders"
-                  description="Receive nudges for planned sessions, races, and meetups."
-                  checked={trainingReminders}
-                  onCheckedChange={setTrainingReminders}
-                />
-                <SettingRow
-                  title="Weekly email digest"
-                  description="See a recap of matches, likes, and profile activity."
-                  checked={emailDigest}
-                  onCheckedChange={setEmailDigest}
-                />
-              </div>
-            </Panel>
-
-            <Panel
-              icon={Shield}
-              title="Privacy and safety"
-              description="A few controls for how your activity and conversations are shared."
-            >
-              <div className="space-y-3">
-                <SettingRow
-                  title="Read receipts"
-                  description="Let people know when you have seen their latest message."
-                  checked={readReceipts}
-                  onCheckedChange={setReadReceipts}
-                />
-                <SettingRow
-                  title="Secure mode"
-                  description="Require verified profiles before new conversations can start."
-                  checked={verifiedOnly}
-                  onCheckedChange={setVerifiedOnly}
-                />
               </div>
 
-              <Separator className="my-5 bg-white/10" />
-
-              <div className="rounded-2xl border border-amber-400/15 bg-amber-500/10 p-4">
-                <div className="flex items-start gap-3">
-                  <Lock className="mt-0.5 h-4 w-4 text-amber-300" />
-                  <div>
-                    <h3 className="text-sm font-semibold text-white">Password and access</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-white/60">
-                      Password reset, device history, and login approvals can live here once the backend is connected.
-                    </p>
-                  </div>
-                </div>
+              <div className="mt-5 rounded-2xl border border-amber-400/15 bg-amber-500/10 p-4">
+                <p className="text-sm font-semibold text-white">Persistence status</p>
+                <p className="mt-1 text-sm leading-relaxed text-white/60">
+                  The schema supports notifications themselves, but not user-managed notification preference storage yet, so these toggles are UI-only for now.
+                </p>
               </div>
             </Panel>
 
