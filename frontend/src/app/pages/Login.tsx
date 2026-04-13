@@ -63,7 +63,7 @@ export function Login() {
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email</label>
                     <input 
-                        type="text" 
+                        type="email"
                         id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
