@@ -74,12 +74,9 @@ export function Login() {
                 </div>
 
                 <div className="space-y-1.5">
-                    <div className="flex justify-between items-center pl-1">
-                        <label className="text-sm font-medium text-white/80" htmlFor="password">Password</label>
-                        <a href="#" className="text-xs text-purple-300 hover:text-white transition-colors">Forgot password?</a>
-                    </div>
-                    <input 
-                        type="password" 
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="password">Password</label>
+                    <input
+                        type="password"
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -87,6 +84,9 @@ export function Login() {
                         className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
                         required
                     />
+                    <div className="flex justify-end">
+                        <Link to="/forgot-password" className="text-xs text-purple-300 hover:text-white transition-colors">Forgot password?</Link>
+                    </div>
                 </div>
 
                 <div

@@ -6,6 +6,8 @@ import { Discovery } from "./pages/Discover";
 import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
@@ -28,6 +30,14 @@ export const router = createBrowserRouter([
   {
     path: "/signup",
     Component: Signup,
+  },
+  {
+    path: "/forgot-password",
+    Component: ForgotPassword,
+  },
+  {
+    path: "/reset-password",
+    Component: ResetPassword,
   },
   {
     path: "/design-system",

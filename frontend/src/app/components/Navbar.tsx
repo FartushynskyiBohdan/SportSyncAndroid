@@ -7,7 +7,7 @@ export function Navbar() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const isDiscovery = location.pathname === '/discover';
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+  const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(location.pathname);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#2E1065]/80 backdrop-blur-md border-b border-white/10 text-white">
