@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
+import { Navbar } from '../components/Navbar';
 import api from '@/app/lib/api';
 import { useAuth } from '@/app/context/AuthContext';
 
@@ -46,24 +47,14 @@ export function Signup() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans flex flex-col">
-      {/* Top Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#2E1065]/80 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold font-heading tracking-tight cursor-pointer hover:text-purple-200 transition-colors">
-            SportSync
-          </Link>
-          <Link to="/login" className="text-sm font-semibold hover:text-purple-300 transition-colors">
-            Login
-          </Link>
-        </div>
-      </nav>
+      <Navbar />
 
-      <div className="flex-1 flex items-center justify-center px-6 py-24 mt-20 md:py-32">
+      <div className="flex-1 flex items-center justify-center px-6 py-20">
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="w-full max-w-[420px] bg-white/5 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-3xl shadow-2xl shadow-purple-950/50"
+            className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-3xl shadow-2xl shadow-purple-950/50"
         >
             {/* Header */}
             <div className="text-center mb-8">

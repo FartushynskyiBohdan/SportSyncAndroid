@@ -7,6 +7,7 @@ export function Navbar() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const isDiscovery = location.pathname === '/discover';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#2E1065]/80 backdrop-blur-md border-b border-white/10 text-white">
@@ -64,8 +65,8 @@ export function Navbar() {
             </>
           )}
 
-          {/* Auth Buttons - only when not authenticated */}
-          {!isAuthenticated && (
+          {/* Auth Buttons - only on pages where it makes sense (not on login/signup themselves) */}
+          {!isAuthenticated && !isAuthPage && (
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => navigate('/login')}
