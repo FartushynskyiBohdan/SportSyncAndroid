@@ -7,6 +7,7 @@ import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
+import { SettingsDeleteAccount } from "./pages/SettingsDeleteAccount";
 import { SettingsPassword } from "./pages/SettingsPassword";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
       { path: "/profile", Component: Profile },
       { path: "/settings", Component: Settings },
       { path: "/settings/password", Component: SettingsPassword },
+      { path: "/settings/delete-account", Component: SettingsDeleteAccount },
     ],
   },
 ]);

@@ -263,4 +263,161 @@ router.put('/settings/password', auth, async (req, res) => {
   }
 });
 
+router.delete('/settings/account', auth, async (req, res) => {
+  const connection = await db.getConnection();
+  let transactionStarted = false;
+
+  try {
+    const { current_password, confirmation } = req.body;
+
+    if (!current_password) {
+      return res.status(400).json({ error: 'Current password is required.' });
+    }
+
+    if (confirmation !== 'DELETE') {
+      return res.status(400).json({ error: 'Type DELETE to confirm account deletion.' });
+    }
+
+    const [users] = await connection.execute(
+      'SELECT email, password_hash FROM users WHERE user_id = ?',
+      [req.userId]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({ error: 'Account not found.' });
+    }
+
+    const isValidPassword = await bcrypt.compare(current_password, users[0].password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+
+    const [matchRows] = await connection.execute(
+      'SELECT match_id FROM matches WHERE user1_id = ? OR user2_id = ?',
+      [req.userId, req.userId]
+    );
+    const matchIds = matchRows.map((row) => row.match_id);
+
+    const [messageRows] = await connection.execute(
+      matchIds.length > 0
+        ? `SELECT message_id FROM messages WHERE sender_id = ? OR match_id IN (${matchIds.map(() => '?').join(', ')})`
+        : 'SELECT message_id FROM messages WHERE sender_id = ?',
+      matchIds.length > 0 ? [req.userId, ...matchIds] : [req.userId]
+    );
+    const messageIds = messageRows.map((row) => row.message_id);
+
+    const [complaintRows] = await connection.execute(
+      'SELECT complaint_id FROM complaints WHERE reporter_id = ? OR reported_id = ?',
+      [req.userId, req.userId]
+    );
+    const complaintIds = complaintRows.map((row) => row.complaint_id);
+
+    await connection.beginTransaction();
+    transactionStarted = true;
+
+    if (complaintIds.length > 0) {
+      await connection.execute(
+        `DELETE FROM notifications WHERE complaint_id IN (${complaintIds.map(() => '?').join(', ')})`,
+        complaintIds
+      );
+    }
+
+    if (messageIds.length > 0) {
+      await connection.execute(
+        `DELETE FROM notifications WHERE message_id IN (${messageIds.map(() => '?').join(', ')})`,
+        messageIds
+      );
+    }
+
+    if (matchIds.length > 0) {
+      await connection.execute(
+        `DELETE FROM notifications WHERE match_id IN (${matchIds.map(() => '?').join(', ')})`,
+        matchIds
+      );
+    }
+
+    await connection.execute(
+      'DELETE FROM notifications WHERE user_id = ?',
+      [req.userId]
+    );
+
+    await connection.execute(
+      'DELETE FROM password_reset_tokens WHERE user_id = ?',
+      [req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM blocked_users WHERE blocker_id = ? OR blocked_id = ?',
+      [req.userId, req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM likes WHERE liker_id = ? OR liked_id = ?',
+      [req.userId, req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM passes WHERE passer_id = ? OR passed_id = ?',
+      [req.userId, req.userId]
+    );
+
+    if (complaintIds.length > 0) {
+      await connection.execute(
+        'DELETE FROM complaints WHERE reporter_id = ? OR reported_id = ?',
+        [req.userId, req.userId]
+      );
+    }
+
+    if (messageIds.length > 0) {
+      await connection.execute(
+        matchIds.length > 0
+          ? `DELETE FROM messages WHERE sender_id = ? OR match_id IN (${matchIds.map(() => '?').join(', ')})`
+          : 'DELETE FROM messages WHERE sender_id = ?',
+        matchIds.length > 0 ? [req.userId, ...matchIds] : [req.userId]
+      );
+    }
+
+    if (matchIds.length > 0) {
+      await connection.execute(
+        'DELETE FROM matches WHERE user1_id = ? OR user2_id = ?',
+        [req.userId, req.userId]
+      );
+    }
+
+    await connection.execute(
+      'DELETE FROM preference_sports WHERE user_id = ?',
+      [req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM preferences WHERE user_id = ?',
+      [req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM user_sports WHERE user_id = ?',
+      [req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM user_photos WHERE user_id = ?',
+      [req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM profiles WHERE user_id = ?',
+      [req.userId]
+    );
+    await connection.execute(
+      'DELETE FROM users WHERE user_id = ?',
+      [req.userId]
+    );
+
+    await connection.commit();
+
+    res.json({ message: 'Account deleted successfully.' });
+  } catch (error) {
+    if (transactionStarted) {
+      await connection.rollback();
+    }
+    console.error('Error deleting account:', error);
+    res.status(500).json({ error: 'Failed to delete account.' });
+  } finally {
+    connection.release();
+  }
+});
+
 module.exports = router;

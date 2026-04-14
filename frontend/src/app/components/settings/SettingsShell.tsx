@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { ChevronLeft, LogOut, Settings as SettingsIcon, Shield, User } from "lucide-react";
+import { AlertTriangle, ChevronLeft, LogOut, Settings as SettingsIcon, Shield, User } from "lucide-react";
 import { Navbar } from "../Navbar";
 import { Button } from "../ui/button";
 import { useAuth } from "../../context/AuthContext";
@@ -44,6 +44,7 @@ export function SettingsShell({
   const { logout } = useAuth();
   const isAccountPage = location.pathname === "/settings";
   const isPasswordPage = location.pathname === "/settings/password";
+  const isDeleteAccountPage = location.pathname === "/settings/delete-account";
 
   const handleLogout = () => {
     logout();
@@ -111,6 +112,14 @@ export function SettingsShell({
                 >
                   <Shield className="h-4 w-4" />
                   Password
+                </Link>
+                <Link
+                  to="/settings/delete-account"
+                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors ${navClass(isDeleteAccountPage)}`}
+                  aria-current={isDeleteAccountPage ? "page" : undefined}
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  Delete account
                 </Link>
               </div>
             </div>
