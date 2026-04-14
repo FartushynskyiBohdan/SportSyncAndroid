@@ -7,6 +7,7 @@ import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
+import { SettingsPassword } from "./pages/SettingsPassword";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
@@ -57,6 +58,7 @@ export const router = createBrowserRouter([
       { path: "/messages", Component: Messages },
       { path: "/profile", Component: Profile },
       { path: "/settings", Component: Settings },
+      { path: "/settings/password", Component: SettingsPassword },
     ],
   },
 ]);

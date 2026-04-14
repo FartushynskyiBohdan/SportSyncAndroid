@@ -9,7 +9,7 @@ export function Navbar() {
   const isMatches = location.pathname === '/matches';
   const isMessages = location.pathname === '/messages';
   const isProfile = location.pathname === '/profile';
-  const isSettings = location.pathname === '/settings';
+  const isSettings = location.pathname.startsWith('/settings');
   const navLinkClass = (active: boolean) =>
     active
       ? 'text-purple-300'
