@@ -16,6 +16,10 @@ import { OnboardingBio } from "./pages/onboarding/OnboardingBio";
 import { OnboardingPreferences } from "./pages/onboarding/OnboardingPreferences";
 import { OnboardingComplete } from "./pages/onboarding/OnboardingComplete";
 import { ProtectedRoute, AppRoute } from "./components/ProtectedRoute";
+import { AdminLayout } from "./pages/admin/AdminLayout";
+import { AdminHome } from "./pages/admin/AdminHome";
+import { AdminUsers } from "./pages/admin/AdminUsers";
+import { AdminReports } from "./pages/admin/AdminReports";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -65,6 +69,18 @@ export const router = createBrowserRouter([
       { path: "/matches", Component: Matches },
       { path: "/messages", Component: Messages },
       { path: "/profile", Component: Profile },
+    ],
+  },
+
+  // Admin routes
+  {
+    path: "/admin",
+    Component: AdminLayout,
+    children: [
+      { index: true, Component: AdminHome },
+      { path: "home", Component: AdminHome },
+      { path: "users", Component: AdminUsers },
+      { path: "reports", Component: AdminReports },
     ],
   },
 ]);

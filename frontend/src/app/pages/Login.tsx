@@ -1,22 +1,15 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Navbar } from '../components/Navbar';
-import { Link, Navigate, useNavigate } from 'react-router';
-import api from '@/app/lib/api';
-import { useAuth } from '@/app/context/AuthContext';
+import { Link } from 'react-router';
+import axios from 'axios';
+import { setAuthData } from '../lib/auth';
 
 export function Login() {
-  const { isAuthenticated, login, user } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  if (isAuthenticated) {
-    return <Navigate to={user?.onboardingComplete ? '/discover' : '/onboarding/profile'} replace />;
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,13 +17,13 @@ export function Login() {
     setError('');
 
     try {
-      const response = await api.post('/api/auth/login', {
+      const response = await axios.post('/api/auth/login', {
         email,
         password,
       });
 
-      login(response.data.token, response.data.user, rememberMe);
-      navigate('/discover');
+      setAuthData(response.data.token, response.data.user.role || 'user', response.data.user.id);
+      window.location.href = response.data.user.role === 'admin' ? '/admin/home' : '/';
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {
@@ -61,9 +54,9 @@ export function Login() {
                   <div className="text-red-400 text-sm text-center">{error}</div>
                 )}
                 <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email</label>
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email or Username</label>
                     <input 
-                        type="email"
+                        type="text" 
                         id="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -74,9 +67,12 @@ export function Login() {
                 </div>
 
                 <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="password">Password</label>
-                    <input
-                        type="password"
+                    <div className="flex justify-between items-center pl-1">
+                        <label className="text-sm font-medium text-white/80" htmlFor="password">Password</label>
+                        <a href="#" className="text-xs text-purple-300 hover:text-white transition-colors">Forgot password?</a>
+                    </div>
+                    <input 
+                        type="password" 
                         id="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -84,23 +80,13 @@ export function Login() {
                         className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all"
                         required
                     />
-                    <div className="flex justify-end">
-                        <Link to="/forgot-password" className="text-xs text-purple-300 hover:text-white transition-colors">Forgot password?</Link>
-                    </div>
                 </div>
 
-                <div
-                  className="flex items-center gap-3 pl-1 cursor-pointer select-none"
-                  onClick={() => setRememberMe(v => !v)}
-                >
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${rememberMe ? 'bg-purple-500 border-purple-400' : 'bg-white/10 border-white/30 hover:border-white/60'}`}>
-                        {rememberMe && (
-                          <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
+                <div className="flex items-center gap-3 pl-1 group cursor-pointer">
+                    <div className="w-5 h-5 rounded flex items-center justify-center bg-white/10 border border-white/30 group-hover:border-white/60 transition-colors">
+                        {/* Check icon would go here when checked */}
                     </div>
-                    <span className="text-sm font-medium text-white/70 hover:text-white transition-colors">Remember me</span>
+                    <label htmlFor="remember" className="text-sm font-medium text-white/70 group-hover:text-white transition-colors cursor-pointer select-none">Remember me</label>
                 </div>
 
                 <button 

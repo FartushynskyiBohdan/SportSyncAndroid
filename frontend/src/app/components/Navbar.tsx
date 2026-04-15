@@ -1,13 +1,12 @@
-import { Search, MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
+import { Search, MessageSquare, Bell, User, Menu } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
-import { useAuth } from '../context/AuthContext';
 
 export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
   const isDiscovery = location.pathname === '/discover';
-  const isAuthPage = ['/login', '/signup', '/forgot-password', '/reset-password'].includes(location.pathname);
+  const isPublicPage = location.pathname === '/' || location.pathname === '/login';
+  const userRole = typeof window !== 'undefined' ? localStorage.getItem('userRole') : null;
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#2E1065]/80 backdrop-blur-md border-b border-white/10 text-white">
@@ -20,10 +19,10 @@ export function Navbar() {
           SportSync
         </div>
 
-        {/* Right-aligned group */}
+        {/* Right-aligned group: on public pages only auth; otherwise search, nav, icons, (auth when not discovery) */}
         <div className="flex-1 flex items-center justify-end gap-4 md:gap-6">
-          {/* Search, nav links, icons - only when authenticated */}
-          {isAuthenticated && (
+          {/* Search, nav links, icons - only when user is "logged in" (not on landing or login) */}
+          {!isPublicPage && (
             <>
               {/* Search Bar - hidden on mobile and discover page */}
               {!isDiscovery && (
@@ -40,11 +39,16 @@ export function Navbar() {
               {/* Links */}
               <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
                 <button onClick={() => navigate('/discover')} className="hover:text-purple-300 transition-colors cursor-pointer">
-                  Discover Athletes
+                  Browse Athletes
                 </button>
                 <button onClick={() => navigate('/matches')} className="hover:text-purple-300 transition-colors cursor-pointer">
                   Matches
                 </button>
+                {userRole === 'admin' && (
+                  <button onClick={() => navigate('/admin/home')} className="hover:text-purple-300 transition-colors cursor-pointer">
+                    Admin
+                  </button>
+                )}
               </div>
 
               {/* Icons */}
@@ -55,18 +59,15 @@ export function Navbar() {
                 <button className="hover:text-purple-300 transition-colors">
                   <Bell className="w-5 h-5" />
                 </button>
-                <button onClick={() => navigate('/settings')} className="hover:text-purple-300 transition-colors">
-                  <Settings className="w-5 h-5" />
-                </button>
-                <button onClick={() => navigate('/profile')} className="hover:text-purple-300 transition-colors">
+                <button className="hover:text-purple-300 transition-colors">
                   <User className="w-5 h-5" />
                 </button>
               </div>
             </>
           )}
 
-          {/* Auth Buttons - only on pages where it makes sense (not on login/signup themselves) */}
-          {!isAuthenticated && !isAuthPage && (
+          {/* Auth Buttons - only on public pages (landing, login); register page has its own nav */}
+          {isPublicPage && (
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => navigate('/login')}
