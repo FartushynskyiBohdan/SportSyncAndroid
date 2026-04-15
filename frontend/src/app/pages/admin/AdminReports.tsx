@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import apiClient from '../../config/api';
+import apiClient from '../../lib/api';
 
 interface ReportRow {
   id: number;
