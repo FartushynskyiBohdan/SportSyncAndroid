@@ -1,39 +1,10 @@
-import { useState } from 'react';
 import { Outlet, Link, Navigate, useLocation } from 'react-router';
 import { Home, Users, FileText, LogOut } from 'lucide-react';
-import { clearAuthData, getUserRole, getAuthToken, isAdmin } from '../../lib/auth';
-import popCatGif from '../../components/pop-cat.gif';
+import { clearAuthData, getAuthToken, isAdmin } from '../../lib/auth';
 
 export function AdminLayout() {
   const token = getAuthToken();
-  const role = getUserRole();
   const location = useLocation();
-  const [catPosition, setCatPosition] = useState({ x: 28, y: 32 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState<{ x: number; y: number } | null>(null);
-
-  const handlePointerDown = (event: React.PointerEvent<HTMLImageElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    setIsDragging(true);
-    const rect = event.currentTarget.getBoundingClientRect();
-    setDragOffset({ x: event.clientX - rect.left, y: event.clientY - rect.top });
-  };
-
-  const handlePointerMove = (event: React.PointerEvent<HTMLImageElement>) => {
-    if (!isDragging || !dragOffset) return;
-    const parentRect = event.currentTarget.parentElement?.getBoundingClientRect();
-    if (!parentRect) return;
-    const x = event.clientX - parentRect.left - dragOffset.x;
-    const y = event.clientY - parentRect.top - dragOffset.y;
-    const clampedX = Math.min(Math.max(x, 0), parentRect.width - 160);
-    const clampedY = Math.min(Math.max(y, 0), parentRect.height - 160);
-    setCatPosition({ x: clampedX, y: clampedY });
-  };
-
-  const handlePointerUp = () => {
-    setIsDragging(false);
-    setDragOffset(null);
-  };
 
   if (!token || !isAdmin()) {
     return <Navigate to="/login" replace />;
@@ -46,38 +17,6 @@ export function AdminLayout() {
 
   return (
     <div className="relative min-h-screen bg-slate-950 text-white overflow-hidden">
-      <style>{`
-        @keyframes fly-cat {
-          0% { transform: translate(-20%, 10%) scale(0.8); opacity: 0.85; }
-          25% { transform: translate(60%, 20%) scale(1); opacity: 1; }
-          50% { transform: translate(100%, 60%) scale(0.8); opacity: 0.85; }
-          75% { transform: translate(40%, 80%) scale(1); opacity: 1; }
-          100% { transform: translate(-20%, 10%) scale(0.8); opacity: 0.85; }
-        }
-        .admin-cat-fly {
-          pointer-events: auto;
-          position: absolute;
-          width: 160px;
-          z-index: 10;
-          touch-action: none;
-        }
-      `}</style>
-      <img
-        src={popCatGif}
-        alt="Flying cat"
-        className="admin-cat-fly"
-        draggable="false"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onContextMenu={(event) => event.preventDefault()}
-        style={{
-          top: catPosition.y,
-          left: catPosition.x,
-          animation: isDragging ? 'none' : 'fly-cat 18s ease-in-out infinite',
-        }}
-      />
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[280px_1fr]">
         <aside className="border-r border-white/10 bg-slate-900/95 p-6">
           <div className="mb-10">
