@@ -267,10 +267,12 @@ function SportSelector({
   sports,
   selectedSports,
   onToggle,
+  onToggleMany,
 }: {
   sports: Sport[];
   selectedSports: string[];
   onToggle: (sportId: string) => void;
+  onToggleMany: (sportIds: string[], selectAll: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
   const selectedSportSet = new Set(selectedSports);
@@ -311,11 +313,21 @@ function SportSelector({
           {SPORT_GROUPS.map((group) => {
             const groupSports = sports.filter(s => group.sports.includes(s.name));
             if (groupSports.length === 0) return null;
+            const groupSportIds = groupSports.map(s => String(s.id));
+            const allSelected = groupSportIds.every(id => selectedSportSet.has(id));
             return (
               <div key={group.label}>
-                <p className="text-xs font-semibold text-white/30 uppercase tracking-widest mb-2">
-                  {group.label}
-                </p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-white/30 uppercase tracking-widest">
+                    {group.label}
+                  </p>
+                  <button
+                    onClick={() => onToggleMany(groupSportIds, !allSelected)}
+                    className="text-xs font-semibold uppercase tracking-widest text-purple-300 hover:text-purple-200 transition-colors"
+                  >
+                    {allSelected ? 'Deselect all' : 'Select all'}
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {groupSports.map((sport) => (
                     <button
@@ -612,6 +624,14 @@ export default function DiscoverySettings({
                       selectedSports: filters.selectedSports.includes(sportId)
                         ? filters.selectedSports.filter((id) => id !== sportId)
                         : [...filters.selectedSports, sportId],
+                    });
+                  }}
+                  onToggleMany={(sportIds, selectAll) => {
+                    setFilters({
+                      ...filters,
+                      selectedSports: selectAll
+                        ? Array.from(new Set([...filters.selectedSports, ...sportIds]))
+                        : filters.selectedSports.filter((id) => !sportIds.includes(id)),
                     });
                   }}
                 />
