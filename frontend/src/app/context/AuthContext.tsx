@@ -1,8 +1,11 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-interface User {
+export type UserRole = 'user' | 'admin';
+
+export interface User {
   id: number;
   email: string;
+  role: UserRole;
   onboardingComplete: boolean;
 }
 
@@ -10,6 +13,7 @@ interface AuthContextValue {
   token: string | null;
   user: User | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   login: (token: string, user: User, rememberMe?: boolean) => void;
   logout: () => void;
   updateUser: (user: User) => void;
@@ -57,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ token, user, isAuthenticated: !!token, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ token, user, isAuthenticated: !!token, isAdmin: user?.role === 'admin', login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

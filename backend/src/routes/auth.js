@@ -37,6 +37,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.user_id,
         email: user.email,
+        role: user.role,
         onboardingComplete: !!user.onboarding_complete,
       },
     });
@@ -73,7 +74,7 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: userId, email, onboardingComplete: false },
+      user: { id: userId, email, role: 'user', onboardingComplete: false },
     });
   } catch (error) {
     console.error(error);

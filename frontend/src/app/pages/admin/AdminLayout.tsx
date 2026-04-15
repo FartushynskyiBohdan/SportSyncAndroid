@@ -1,18 +1,15 @@
-import { Outlet, Link, Navigate, useLocation } from 'react-router';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Home, Users, FileText, LogOut } from 'lucide-react';
-import { clearAuthData, getAuthToken, isAdmin } from '../../lib/auth';
+import { useAuth } from '@/app/context/AuthContext';
 
 export function AdminLayout() {
-  const token = getAuthToken();
   const location = useLocation();
-
-  if (!token || !isAdmin()) {
-    return <Navigate to="/login" replace />;
-  }
+  const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    clearAuthData();
-    window.location.href = '/login';
+    logout();
+    navigate('/login', { replace: true });
   };
 
   return (

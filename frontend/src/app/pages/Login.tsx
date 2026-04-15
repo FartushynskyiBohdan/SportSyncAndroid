@@ -1,15 +1,24 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Navbar } from '../components/Navbar';
-import { Link } from 'react-router';
-import axios from 'axios';
-import { setAuthData } from '../lib/auth';
+import { Link, Navigate, useNavigate } from 'react-router';
+import api from '@/app/lib/api';
+import { useAuth } from '@/app/context/AuthContext';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { isAuthenticated, isAdmin, user, login } = useAuth();
+  const navigate = useNavigate();
+
+  if (isAuthenticated) {
+    const dest = isAdmin
+      ? '/admin/home'
+      : user?.onboardingComplete ? '/discover' : '/onboarding/profile';
+    return <Navigate to={dest} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,13 +26,13 @@ export function Login() {
     setError('');
 
     try {
-      const response = await axios.post('/api/auth/login', {
-        email,
-        password,
-      });
-
-      setAuthData(response.data.token, response.data.user.role || 'user', response.data.user.id);
-      window.location.href = response.data.user.role === 'admin' ? '/admin/home' : '/';
+      const response = await api.post('/api/auth/login', { email, password });
+      const { token, user: loggedIn } = response.data;
+      login(token, loggedIn);
+      const dest = loggedIn.role === 'admin'
+        ? '/admin/home'
+        : loggedIn.onboardingComplete ? '/discover' : '/onboarding/profile';
+      navigate(dest, { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {
