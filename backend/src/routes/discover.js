@@ -213,4 +213,118 @@ router.get('/discover', auth, async (req, res) => {
   }
 });
 
+/* ─── POST /api/discover/like/:id ─── */
+
+router.post('/discover/like/:id', auth, async (req, res) => {
+  const userId = req.userId;
+  const likedId = Number(req.params.id);
+
+  if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+  if (!Number.isInteger(likedId) || likedId <= 0) {
+    return res.status(400).json({ error: 'Invalid user id.' });
+  }
+  if (likedId === userId) {
+    return res.status(400).json({ error: 'Cannot like yourself.' });
+  }
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Verify target exists and is active
+    const [targetRows] = await conn.execute(
+      `SELECT user_id FROM users
+       WHERE user_id = ? AND account_status = 'active'`,
+      [likedId]
+    );
+    if (targetRows.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Remove any prior pass on this user so the like takes precedence
+    await conn.execute(
+      'DELETE FROM passes WHERE passer_id = ? AND passed_id = ?',
+      [userId, likedId]
+    );
+
+    // Insert the like (idempotent via IGNORE on the unique constraint)
+    await conn.execute(
+      'INSERT IGNORE INTO likes (liker_id, liked_id) VALUES (?, ?)',
+      [userId, likedId]
+    );
+
+    // Check for reciprocal like
+    const [reciprocal] = await conn.execute(
+      'SELECT 1 FROM likes WHERE liker_id = ? AND liked_id = ?',
+      [likedId, userId]
+    );
+
+    let matched = false;
+    let matchId = null;
+
+    if (reciprocal.length > 0) {
+      // Normalize so user1_id < user2_id to satisfy uq_matches
+      const [user1, user2] = userId < likedId ? [userId, likedId] : [likedId, userId];
+
+      await conn.execute(
+        'INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)',
+        [user1, user2]
+      );
+
+      const [matchRows] = await conn.execute(
+        'SELECT match_id FROM matches WHERE user1_id = ? AND user2_id = ?',
+        [user1, user2]
+      );
+      matched = true;
+      matchId = matchRows[0]?.match_id ?? null;
+    }
+
+    await conn.commit();
+    res.json({ matched, matchId });
+  } catch (error) {
+    await conn.rollback();
+    console.error('Error recording like:', error);
+    res.status(500).json({ error: 'Failed to record like.' });
+  } finally {
+    conn.release();
+  }
+});
+
+/* ─── POST /api/discover/pass/:id ─── */
+
+router.post('/discover/pass/:id', auth, async (req, res) => {
+  const userId = req.userId;
+  const passedId = Number(req.params.id);
+
+  if (!userId) return res.status(401).json({ error: 'Authentication required.' });
+  if (!Number.isInteger(passedId) || passedId <= 0) {
+    return res.status(400).json({ error: 'Invalid user id.' });
+  }
+  if (passedId === userId) {
+    return res.status(400).json({ error: 'Cannot pass on yourself.' });
+  }
+
+  try {
+    const [targetRows] = await db.execute(
+      `SELECT user_id FROM users
+       WHERE user_id = ? AND account_status = 'active'`,
+      [passedId]
+    );
+    if (targetRows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    await db.execute(
+      'INSERT IGNORE INTO passes (passer_id, passed_id) VALUES (?, ?)',
+      [userId, passedId]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error recording pass:', error);
+    res.status(500).json({ error: 'Failed to record pass.' });
+  }
+});
+
 module.exports = router;
