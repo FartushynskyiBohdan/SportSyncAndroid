@@ -9,6 +9,8 @@ import { Profile } from "./pages/Profile";
 import { Settings } from "./pages/Settings";
 import { SettingsDeleteAccount } from "./pages/SettingsDeleteAccount";
 import { SettingsPassword } from "./pages/SettingsPassword";
+import { ForgotPassword } from "./pages/ForgotPassword";
+import { ResetPassword } from "./pages/ResetPassword";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
@@ -16,7 +18,11 @@ import { OnboardingPhotos } from "./pages/onboarding/OnboardingPhotos";
 import { OnboardingBio } from "./pages/onboarding/OnboardingBio";
 import { OnboardingPreferences } from "./pages/onboarding/OnboardingPreferences";
 import { OnboardingComplete } from "./pages/onboarding/OnboardingComplete";
-import { ProtectedRoute, AppRoute } from "./components/ProtectedRoute";
+import { ProtectedRoute, AppRoute, AdminRoute } from "./components/ProtectedRoute";
+import { AdminLayout } from "./pages/admin/AdminLayout";
+import { AdminHome } from "./pages/admin/AdminHome";
+import { AdminUsers } from "./pages/admin/AdminUsers";
+import { AdminReports } from "./pages/admin/AdminReports";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -31,6 +37,14 @@ export const router = createBrowserRouter([
   {
     path: "/signup",
     Component: Signup,
+  },
+  {
+    path: "/forgot-password",
+    Component: ForgotPassword,
+  },
+  {
+    path: "/reset-password",
+    Component: ResetPassword,
   },
   {
     path: "/design-system",
@@ -61,6 +75,23 @@ export const router = createBrowserRouter([
       { path: "/settings", Component: Settings },
       { path: "/settings/password", Component: SettingsPassword },
       { path: "/settings/delete-account", Component: SettingsDeleteAccount },
+    ],
+  },
+
+  // Admin routes
+  {
+    Component: AdminRoute,
+    children: [
+      {
+        path: "/admin",
+        Component: AdminLayout,
+        children: [
+          { index: true, Component: AdminHome },
+          { path: "home", Component: AdminHome },
+          { path: "users", Component: AdminUsers },
+          { path: "reports", Component: AdminReports },
+        ],
+      },
     ],
   },
 ]);

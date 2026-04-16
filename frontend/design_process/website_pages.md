@@ -3,10 +3,10 @@
 ## 1. Public / Marketing Pages
 
 -   `/` -- Landing Page
--   `/about` -- About the company/app
+<!-- -   `/about` -- About the company/app -->
 <!-- -   `/how-it-works` -- Explanation of the platform -->
 <!-- -   `/features` -- Feature overview -->
--   `/faq` -- Frequently asked questions
+<!-- -   `/faq` -- Frequently asked questions -->
 
 ------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@
 
 ------------------------------------------------------------------------
 
-## 6. Discovery Settings
+## 6. Discovery Settings ✅
 
 -   `/discovery/settings` -- Adjust matching filters
 
@@ -63,14 +63,12 @@
 
 -   `/blocked-users` -- Users you have blocked
 -   `/report/:user_id` -- Report a user
--   `/safety` -- Safety guidelines
 
 ------------------------------------------------------------------------
 
 ## 9. Account Management
 
 -   `/settings` -- General account settings
--   `/settings/preferences` -- Dating preferences
 -   `/settings/password` -- Change password
 -   `/settings/privacy` -- Privacy controls
 -   `/settings/delete-account` -- Delete account

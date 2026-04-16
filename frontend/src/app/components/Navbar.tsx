@@ -1,9 +1,11 @@
 import { Search, MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
+import { useAuth } from '@/app/context/AuthContext';
 
 export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated, isAdmin } = useAuth();
   const isDiscovery = location.pathname === '/discover';
   const isPublicPage = location.pathname === '/' || location.pathname === '/login';
   const isMatches = location.pathname === '/matches';
@@ -18,6 +20,7 @@ export function Navbar() {
     active
       ? 'text-purple-300'
       : 'hover:text-purple-300 transition-colors';
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#2E1065]/80 backdrop-blur-md border-b border-white/10 text-white">
@@ -32,8 +35,8 @@ export function Navbar() {
 
         {/* Right-aligned group: on public pages only auth; otherwise search, nav, icons, (auth when not discovery) */}
         <div className="flex-1 flex items-center justify-end gap-4 md:gap-6">
-          {/* Search, nav links, icons - only when user is "logged in" (not on landing or login) */}
-          {!isPublicPage && (
+          {/* Search, nav links, icons - only when authenticated */}
+          {isAuthenticated && (
             <>
               {/* Search Bar - hidden on mobile and discover page */}
               {!isDiscovery && (
@@ -63,6 +66,11 @@ export function Navbar() {
                 >
                   Matches
                 </button>
+                {isAdmin && (
+                  <button onClick={() => navigate('/admin/home')} className="hover:text-purple-300 transition-colors cursor-pointer">
+                    Admin
+                  </button>
+                )}
               </div>
 
               {/* Icons */}
@@ -105,8 +113,8 @@ export function Navbar() {
             </>
           )}
 
-          {/* Auth Buttons - only on public pages (landing, login); register page has its own nav */}
-          {isPublicPage && (
+          {/* Auth Buttons - shown to anonymous visitors, hidden on the auth pages themselves */}
+          {!isAuthenticated && !isAuthPage && (
             <div className="flex items-center gap-2 md:gap-3">
               <button
                 onClick={() => navigate('/login')}

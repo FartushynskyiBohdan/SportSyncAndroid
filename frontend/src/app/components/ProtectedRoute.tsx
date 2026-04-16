@@ -14,14 +14,33 @@ export function ProtectedRoute() {
 
 /** Requires authentication AND completed onboarding (used for main app pages). */
 export function AppRoute() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, isAdmin, user } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
+  if (isAdmin) {
+    return <Navigate to="/admin/home" replace />;
+  }
+
   if (!user?.onboardingComplete) {
     return <Navigate to="/onboarding/profile" replace />;
+  }
+
+  return <Outlet />;
+}
+
+/** Requires authentication AND admin role (used for admin pages). */
+export function AdminRoute() {
+  const { isAuthenticated, isAdmin } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/discover" replace />;
   }
 
   return <Outlet />;
