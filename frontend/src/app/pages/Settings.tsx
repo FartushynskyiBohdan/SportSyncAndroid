@@ -10,6 +10,7 @@ import { Input } from "../components/ui/input";
 import api, { isAxiosError } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { SettingsPanel, SettingsShell } from "../components/settings/SettingsShell";
+import isEmail from "validator/lib/isEmail";
 
 interface Gender {
   id: number;
@@ -108,6 +109,7 @@ export function Settings() {
   const [loadingCities, setLoadingCities] = useState(false);
   const [accountUnlocked, setAccountUnlocked] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState("");
+  const [verifiedPassword, setVerifiedPassword] = useState("");
   const [unlockMessage, setUnlockMessage] = useState("");
   const [unlockError, setUnlockError] = useState("");
   const [savingAccount, setSavingAccount] = useState(false);
@@ -210,10 +212,13 @@ export function Settings() {
       await api.post("/api/settings/verify-password", {
         current_password: unlockPassword,
       });
+      setVerifiedPassword(unlockPassword.trim());
+      setUnlockPassword("");
       setAccountUnlocked(true);
-      setUnlockMessage("Account fields unlocked.");
+      setUnlockMessage("Verified. You can now update the editable account fields below.");
     } catch (error) {
       setAccountUnlocked(false);
+      setVerifiedPassword("");
       if (isAxiosError(error)) {
         setUnlockError(error.response?.data?.error ?? "Failed to verify password.");
       } else {
@@ -226,8 +231,13 @@ export function Settings() {
     setAccountError("");
     setAccountMessage("");
 
-    if (!unlockPassword.trim()) {
+    if (!verifiedPassword.trim()) {
       setAccountError("Your current password is required to save account changes.");
+      return;
+    }
+
+    if (!isEmail(form.email.trim())) {
+      setAccountError("A valid email address is required.");
       return;
     }
 
@@ -247,7 +257,7 @@ export function Settings() {
     setSavingAccount(true);
     try {
       const response = await api.put("/api/settings/account", {
-        current_password: unlockPassword,
+        current_password: verifiedPassword,
         email: form.email.trim(),
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
@@ -261,6 +271,10 @@ export function Settings() {
       }
 
       setAccountMessage(response.data.message ?? "Account updated successfully.");
+      setVerifiedPassword("");
+      setUnlockPassword("");
+      setAccountUnlocked(false);
+      setUnlockMessage("Changes saved. Re-enter your password to unlock editable fields again.");
     } catch (error) {
       if (isAxiosError(error)) {
         setAccountError(error.response?.data?.error ?? "Failed to update account.");
@@ -305,13 +319,15 @@ export function Settings() {
                 value={unlockPassword}
                 onChange={(event) => setUnlockPassword(event.target.value)}
                 placeholder="Enter current password"
+                disabled={accountUnlocked}
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
               />
               <Button
                 onClick={handleUnlock}
+                disabled={accountUnlocked}
                 className="h-11 rounded-2xl bg-white text-purple-950 hover:bg-purple-100"
               >
-                Unlock fields
+                {accountUnlocked ? "Verified" : "Unlock fields"}
               </Button>
             </div>
 
@@ -327,8 +343,7 @@ export function Settings() {
               <Input
                 id="firstName"
                 value={form.first_name}
-                onChange={(event) => setField("first_name", event.target.value)}
-                disabled={!accountUnlocked}
+                disabled
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
               />
             </div>
@@ -339,8 +354,7 @@ export function Settings() {
               <Input
                 id="lastName"
                 value={form.last_name}
-                onChange={(event) => setField("last_name", event.target.value)}
-                disabled={!accountUnlocked}
+                disabled
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
               />
             </div>
@@ -355,8 +369,7 @@ export function Settings() {
                 id="email"
                 type="email"
                 value={form.email}
-                onChange={(event) => setField("email", event.target.value)}
-                disabled={!accountUnlocked}
+                disabled
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
               />
             </div>
@@ -368,8 +381,7 @@ export function Settings() {
                 id="birthDate"
                 type="date"
                 value={form.birth_date}
-                onChange={(event) => setField("birth_date", event.target.value)}
-                disabled={!accountUnlocked}
+                disabled
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white"
               />
             </div>

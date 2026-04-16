@@ -1,12 +1,27 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
+const isEmail = require('validator/lib/isEmail');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
+const sensitiveSettingsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => String(req.userId ?? req.ip),
+  message: { error: 'Too many password-protected settings attempts. Please try again later.' },
+});
 
 function calculateAge(birthDate) {
   const dob = new Date(birthDate);
+
+  if (Number.isNaN(dob.getTime())) {
+    return null;
+  }
+
   const today = new Date();
   let age = today.getFullYear() - dob.getFullYear();
   const monthDiff = today.getMonth() - dob.getMonth();
@@ -55,7 +70,7 @@ router.get('/settings/account', auth, async (req, res) => {
   }
 });
 
-router.post('/settings/verify-password', auth, async (req, res) => {
+router.post('/settings/verify-password', auth, sensitiveSettingsLimiter, async (req, res) => {
   try {
     const { current_password } = req.body;
 
@@ -117,6 +132,10 @@ router.put('/settings/account', auth, async (req, res) => {
       return res.status(400).json({ error: 'Email is required.' });
     }
 
+    if (!isEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'A valid email address is required.' });
+    }
+
     if (!normalizedFirstName || !normalizedLastName) {
       return res.status(400).json({ error: 'First name and last name are required.' });
     }
@@ -125,7 +144,12 @@ router.put('/settings/account', auth, async (req, res) => {
       return res.status(400).json({ error: 'Gender and city must be valid selections.' });
     }
 
-    if (calculateAge(birth_date) < 18) {
+    const age = calculateAge(birth_date);
+    if (age === null) {
+      return res.status(400).json({ error: 'Birth date must be a valid date.' });
+    }
+
+    if (age < 18) {
       return res.status(400).json({ error: 'You must be at least 18 years old.' });
     }
 
@@ -219,7 +243,7 @@ router.put('/settings/account', auth, async (req, res) => {
   }
 });
 
-router.put('/settings/password', auth, async (req, res) => {
+router.put('/settings/password', auth, sensitiveSettingsLimiter, async (req, res) => {
   try {
     const { current_password, new_password } = req.body;
 
@@ -263,7 +287,7 @@ router.put('/settings/password', auth, async (req, res) => {
   }
 });
 
-router.delete('/settings/account', auth, async (req, res) => {
+router.delete('/settings/account', auth, sensitiveSettingsLimiter, async (req, res) => {
   const connection = await db.getConnection();
   let transactionStarted = false;
 
