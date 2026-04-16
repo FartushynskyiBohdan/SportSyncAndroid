@@ -1,4 +1,4 @@
-import { Search, MessageSquare, Bell, User, Menu } from 'lucide-react';
+import { Search, MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/app/context/AuthContext';
 
@@ -7,6 +7,19 @@ export function Navbar() {
   const location = useLocation();
   const { isAuthenticated, isAdmin } = useAuth();
   const isDiscovery = location.pathname === '/discover';
+  const isPublicPage = location.pathname === '/' || location.pathname === '/login';
+  const isMatches = location.pathname === '/matches';
+  const isMessages = location.pathname === '/messages';
+  const isProfile = location.pathname === '/profile';
+  const isSettings = location.pathname.startsWith('/settings');
+  const navLinkClass = (active: boolean) =>
+    active
+      ? 'text-purple-300'
+      : 'hover:text-purple-300 transition-colors cursor-pointer';
+  const navIconClass = (active: boolean) =>
+    active
+      ? 'text-purple-300'
+      : 'hover:text-purple-300 transition-colors';
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
 
   return (
@@ -39,10 +52,18 @@ export function Navbar() {
 
               {/* Links */}
               <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
-                <button onClick={() => navigate('/discover')} className="hover:text-purple-300 transition-colors cursor-pointer">
-                  Browse Athletes
+                <button
+                  onClick={() => navigate('/discover')}
+                  className={navLinkClass(isDiscovery)}
+                  aria-current={isDiscovery ? 'page' : undefined}
+                >
+                  Discover Athletes
                 </button>
-                <button onClick={() => navigate('/matches')} className="hover:text-purple-300 transition-colors cursor-pointer">
+                <button
+                  onClick={() => navigate('/matches')}
+                  className={navLinkClass(isMatches)}
+                  aria-current={isMatches ? 'page' : undefined}
+                >
                   Matches
                 </button>
                 {isAdmin && (
@@ -54,13 +75,38 @@ export function Navbar() {
 
               {/* Icons */}
               <div className="hidden lg:flex items-center gap-4 border-l border-white/20 pl-6">
-                <button onClick={() => navigate('/messages')} className="hover:text-purple-300 transition-colors">
+                <button
+                  onClick={() => navigate('/messages')}
+                  className={navIconClass(isMessages)}
+                  aria-label="Open messages"
+                  aria-current={isMessages ? 'page' : undefined}
+                  title="Messages"
+                >
                   <MessageSquare className="w-5 h-5" />
                 </button>
-                <button className="hover:text-purple-300 transition-colors">
+                <button
+                  className={navIconClass(false)}
+                  aria-label="Open notifications"
+                  title="Notifications"
+                >
                   <Bell className="w-5 h-5" />
                 </button>
-                <button className="hover:text-purple-300 transition-colors">
+                <button
+                  onClick={() => navigate('/settings')}
+                  className={navIconClass(isSettings)}
+                  aria-label="Open settings"
+                  aria-current={isSettings ? 'page' : undefined}
+                  title="Settings"
+                >
+                  <Settings className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => navigate('/profile')}
+                  className={navIconClass(isProfile)}
+                  aria-label="Open profile"
+                  aria-current={isProfile ? 'page' : undefined}
+                  title="Profile"
+                >
                   <User className="w-5 h-5" />
                 </button>
               </div>

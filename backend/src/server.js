@@ -5,6 +5,7 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const onboardingRoutes = require('./routes/onboarding');
 const discoverRoutes = require('./routes/discover');
+const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
@@ -19,6 +20,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api', onboardingRoutes);
 app.use('/api', discoverRoutes);
+app.use('/api', settingsRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
