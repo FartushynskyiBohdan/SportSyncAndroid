@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Navbar } from '../components/Navbar';
-import { Heart, X, MapPin, Activity, Target, Sliders, Loader2, RefreshCw } from 'lucide-react';
+import { Heart, X, MapPin, Activity, Target, Sliders, Loader2, RefreshCw, Info } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import DiscoverySettings from '../components/DiscoverySettings';
 import apiClient from '../lib/api';
@@ -31,6 +32,7 @@ interface Athlete {
 }
 
 export function Discovery() {
+  const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
@@ -113,6 +115,11 @@ export function Discovery() {
     }
   };
 
+  const openProfile = () => {
+    const athlete = athletes[currentIndex];
+    if (athlete) navigate(`/profile/${athlete.id}`);
+  };
+
   // Keyboard Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -176,10 +183,14 @@ export function Discovery() {
               dragConstraints={{ left: 0, right: 0 }}
               dragElastic={0.8}
               onDragEnd={onDragEnd}
+              onTap={openProfile}
               animate={controls}
               whileDrag={{ scale: 1.02 }}
-              className="w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl overflow-hidden cursor-grab active:cursor-grabbing flex flex-col"
+              className="w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl overflow-hidden cursor-grab active:cursor-grabbing flex flex-col hover:bg-white/[0.12] transition-colors"
               style={{ minHeight: '600px' }}
+              role="button"
+              tabIndex={0}
+              aria-label={`View ${currentAthlete.name}'s profile`}
             >
               {/* Top Section - Large Photo (~70% visually) */}
               <div className="relative h-[400px] w-full shrink-0">
@@ -198,6 +209,20 @@ export function Discovery() {
                     {currentAthlete.tag}
                   </div>
                 )}
+
+                {/* View-profile affordance (Tinder-style "i") */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/profile/${currentAthlete.id}`);
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="absolute top-4 right-4 w-9 h-9 bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95 shadow-md"
+                  aria-label="View full profile"
+                  title="View full profile"
+                >
+                  <Info className="w-5 h-5" />
+                </button>
 
                 {/* Name & Details overlaying the image bottom */}
                 <div className="absolute bottom-0 left-0 right-0 p-6 pt-12">
