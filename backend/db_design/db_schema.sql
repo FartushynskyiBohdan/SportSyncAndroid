@@ -72,7 +72,7 @@ CREATE TABLE profiles (
     city_id     INT          NOT NULL,
     bio         TEXT         NULL,
     PRIMARY KEY (user_id),
-    CONSTRAINT fk_profiles_user   FOREIGN KEY (user_id)   REFERENCES users   (user_id),
+    CONSTRAINT fk_profiles_user   FOREIGN KEY (user_id)   REFERENCES users   (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_profiles_gender FOREIGN KEY (gender_id) REFERENCES genders (gender_id),
     CONSTRAINT fk_profiles_city   FOREIGN KEY (city_id)   REFERENCES cities  (city_id)
 );
@@ -87,7 +87,7 @@ CREATE TABLE user_photos (
     display_order INT          NOT NULL DEFAULT 0,
     uploaded_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (photo_id),
-    CONSTRAINT fk_user_photos_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+    CONSTRAINT fk_user_photos_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------
@@ -171,7 +171,7 @@ CREATE TABLE user_sports (
     years_experience  INT NULL,
     frequency_id      INT NOT NULL,
     PRIMARY KEY (user_id, sport_id),
-    CONSTRAINT fk_user_sports_user      FOREIGN KEY (user_id)        REFERENCES users               (user_id),
+    CONSTRAINT fk_user_sports_user      FOREIGN KEY (user_id)        REFERENCES users               (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_user_sports_sport     FOREIGN KEY (sport_id)       REFERENCES sports              (sport_id),
     CONSTRAINT fk_user_sports_skill     FOREIGN KEY (skill_level_id) REFERENCES skill_levels        (skill_level_id),
     CONSTRAINT fk_user_sports_frequency FOREIGN KEY (frequency_id)   REFERENCES training_frequencies(frequency_id)
@@ -207,7 +207,7 @@ CREATE TABLE preferences (
     min_photos             INT     NOT NULL DEFAULT 1,
     show_out_of_range      BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (user_id),
-    CONSTRAINT fk_preferences_user      FOREIGN KEY (user_id)                REFERENCES users                (user_id),
+    CONSTRAINT fk_preferences_user      FOREIGN KEY (user_id)                REFERENCES users                (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_preferences_gender    FOREIGN KEY (gender_id)              REFERENCES genders              (gender_id),
     CONSTRAINT fk_preferences_goal      FOREIGN KEY (goal_id)                REFERENCES relationship_goals   (goal_id),
     CONSTRAINT fk_preferences_skill     FOREIGN KEY (min_skill_level_id)     REFERENCES skill_levels         (skill_level_id),
@@ -221,7 +221,7 @@ CREATE TABLE preference_sports (
     user_id  INT NOT NULL,
     sport_id INT NOT NULL,
     PRIMARY KEY (user_id, sport_id),
-    CONSTRAINT fk_preference_sports_user  FOREIGN KEY (user_id)  REFERENCES users  (user_id),
+    CONSTRAINT fk_preference_sports_user  FOREIGN KEY (user_id)  REFERENCES users  (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_preference_sports_sport FOREIGN KEY (sport_id) REFERENCES sports (sport_id)
 );
 
@@ -235,8 +235,8 @@ CREATE TABLE likes (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (like_id),
     UNIQUE KEY uq_likes (liker_id, liked_id),
-    CONSTRAINT fk_likes_liker FOREIGN KEY (liker_id) REFERENCES users (user_id),
-    CONSTRAINT fk_likes_liked FOREIGN KEY (liked_id) REFERENCES users (user_id)
+    CONSTRAINT fk_likes_liker FOREIGN KEY (liker_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_likes_liked FOREIGN KEY (liked_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------
@@ -249,8 +249,8 @@ CREATE TABLE passes (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (pass_id),
     UNIQUE KEY uq_passes (passer_id, passed_id),
-    CONSTRAINT fk_passes_passer FOREIGN KEY (passer_id) REFERENCES users (user_id),
-    CONSTRAINT fk_passes_passed FOREIGN KEY (passed_id) REFERENCES users (user_id)
+    CONSTRAINT fk_passes_passer FOREIGN KEY (passer_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_passes_passed FOREIGN KEY (passed_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------
@@ -263,8 +263,8 @@ CREATE TABLE matches (
     matched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (match_id),
     UNIQUE KEY uq_matches (user1_id, user2_id),
-    CONSTRAINT fk_matches_user1 FOREIGN KEY (user1_id) REFERENCES users (user_id),
-    CONSTRAINT fk_matches_user2 FOREIGN KEY (user2_id) REFERENCES users (user_id)
+    CONSTRAINT fk_matches_user1 FOREIGN KEY (user1_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_matches_user2 FOREIGN KEY (user2_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------
@@ -278,8 +278,8 @@ CREATE TABLE messages (
     sent_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     read_at      TIMESTAMP NULL,
     PRIMARY KEY (message_id),
-    CONSTRAINT fk_messages_match  FOREIGN KEY (match_id)  REFERENCES matches (match_id),
-    CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users   (user_id)
+    CONSTRAINT fk_messages_match  FOREIGN KEY (match_id)  REFERENCES matches (match_id) ON DELETE CASCADE,
+    CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users   (user_id)  ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------
@@ -310,10 +310,10 @@ CREATE TABLE notifications (
     is_read         BOOLEAN      NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (notification_id),
-    CONSTRAINT fk_notifications_user       FOREIGN KEY (user_id)      REFERENCES users             (user_id),
+    CONSTRAINT fk_notifications_user       FOREIGN KEY (user_id)      REFERENCES users             (user_id)  ON DELETE CASCADE,
     CONSTRAINT fk_notifications_type       FOREIGN KEY (type_id)      REFERENCES notification_types(type_id),
-    CONSTRAINT fk_notifications_match      FOREIGN KEY (match_id)     REFERENCES matches           (match_id),
-    CONSTRAINT fk_notifications_message    FOREIGN KEY (message_id)   REFERENCES messages          (message_id),
+    CONSTRAINT fk_notifications_match      FOREIGN KEY (match_id)     REFERENCES matches           (match_id) ON DELETE CASCADE,
+    CONSTRAINT fk_notifications_message    FOREIGN KEY (message_id)   REFERENCES messages          (message_id) ON DELETE CASCADE,
     -- fk_notifications_complaint added after complaints table is created (see below)
     CONSTRAINT chk_notifications_ref CHECK (
         (match_id      IS NOT NULL AND message_id IS NULL     AND complaint_id IS NULL) OR
@@ -333,7 +333,7 @@ CREATE TABLE password_reset_tokens (
     created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (token_id),
     UNIQUE KEY uq_password_reset_token (token),
-    CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users (user_id)
+    CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------
@@ -346,8 +346,8 @@ CREATE TABLE blocked_users (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (block_id),
     UNIQUE KEY uq_blocked_users (blocker_id, blocked_id),
-    CONSTRAINT fk_blocked_users_blocker FOREIGN KEY (blocker_id) REFERENCES users (user_id),
-    CONSTRAINT fk_blocked_users_blocked FOREIGN KEY (blocked_id) REFERENCES users (user_id)
+    CONSTRAINT fk_blocked_users_blocker FOREIGN KEY (blocker_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_blocked_users_blocked FOREIGN KEY (blocked_id) REFERENCES users (user_id) ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------
@@ -393,8 +393,8 @@ CREATE TABLE complaints (
     status_id    INT       NOT NULL,
     created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (complaint_id),
-    CONSTRAINT fk_complaints_reporter FOREIGN KEY (reporter_id) REFERENCES users              (user_id),
-    CONSTRAINT fk_complaints_reported FOREIGN KEY (reported_id) REFERENCES users              (user_id),
+    CONSTRAINT fk_complaints_reporter FOREIGN KEY (reporter_id) REFERENCES users              (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_complaints_reported FOREIGN KEY (reported_id) REFERENCES users              (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_complaints_type     FOREIGN KEY (type_id)     REFERENCES complaint_types    (type_id),
     CONSTRAINT fk_complaints_status   FOREIGN KEY (status_id)   REFERENCES complaint_statuses (status_id)
 );
@@ -405,5 +405,5 @@ CREATE TABLE complaints (
 -- ------------------------------------------------------------
 ALTER TABLE notifications
     ADD CONSTRAINT fk_notifications_complaint
-    FOREIGN KEY (complaint_id) REFERENCES complaints (complaint_id);
+    FOREIGN KEY (complaint_id) REFERENCES complaints (complaint_id) ON DELETE CASCADE;
 
