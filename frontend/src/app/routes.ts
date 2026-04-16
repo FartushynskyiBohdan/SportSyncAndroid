@@ -72,6 +72,7 @@ export const router = createBrowserRouter([
       { path: "/matches", Component: Matches },
       { path: "/messages", Component: Messages },
       { path: "/profile", Component: Profile },
+      { path: "/profile/:userId", Component: Profile },
       { path: "/settings", Component: Settings },
       { path: "/settings/password", Component: SettingsPassword },
       { path: "/settings/delete-account", Component: SettingsDeleteAccount },
