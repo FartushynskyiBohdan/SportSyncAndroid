@@ -8,6 +8,7 @@ const discoverRoutes = require('./routes/discover');
 const matchesRoutes = require('./routes/matches');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
+const usersRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,7 @@ app.use('/api', onboardingRoutes);
 app.use('/api', discoverRoutes);
 app.use('/api', matchesRoutes);
 app.use('/api', settingsRoutes);
+app.use('/api', usersRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
