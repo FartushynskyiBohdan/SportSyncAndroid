@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { motion, useAnimation } from 'motion/react';
+import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { Navbar } from '../components/Navbar';
 import { Heart, X, MapPin, Activity, Target, Sliders, Loader2, RefreshCw } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
@@ -49,6 +49,7 @@ export function Discovery() {
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [matchedAthlete, setMatchedAthlete] = useState<Athlete | null>(null);
 
   const fetchProfiles = useCallback(async () => {
     setLoading(true);
@@ -72,13 +73,32 @@ export function Discovery() {
   const currentAthlete = athletes[currentIndex];
 
   const handleSwipe = async (direction: 'left' | 'right') => {
+    const athlete = athletes[currentIndex];
+    if (!athlete) return;
+
     const xOff = direction === 'right' ? 300 : -300;
-    await controls.start({
+    const endpoint = direction === 'right'
+      ? `/api/discover/like/${athlete.id}`
+      : `/api/discover/pass/${athlete.id}`;
+
+    const animation = controls.start({
       x: xOff,
       opacity: 0,
       rotate: direction === 'right' ? 15 : -15,
       transition: { duration: 0.3 }
     });
+
+    const request = apiClient.post(endpoint).catch((err) => {
+      console.error(`Failed to record ${direction === 'right' ? 'like' : 'pass'}:`, err);
+      return null;
+    });
+
+    const [response] = await Promise.all([request, animation]);
+
+    if (direction === 'right' && response?.data?.matched) {
+      setMatchedAthlete(athlete);
+    }
+
     setCurrentIndex((prev) => prev + 1);
     controls.set({ x: 0, opacity: 1, rotate: 0 });
   };
@@ -262,6 +282,52 @@ export function Discovery() {
 
         </div>
       </div>
+
+      {/* It's a Match! Overlay */}
+      <AnimatePresence>
+        {matchedAthlete && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center p-6"
+            onClick={() => setMatchedAthlete(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.8, y: 40 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] border border-white/20 rounded-3xl shadow-2xl overflow-hidden text-center p-8"
+            >
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Heart className="w-8 h-8 text-rose-400 fill-current" />
+                <h2 className="text-4xl font-black font-heading tracking-tight bg-gradient-to-r from-pink-400 to-rose-300 bg-clip-text text-transparent">
+                  It's a Match!
+                </h2>
+                <Heart className="w-8 h-8 text-rose-400 fill-current" />
+              </div>
+              <p className="text-white/70 text-sm mb-6">
+                You and {matchedAthlete.name} liked each other.
+              </p>
+              <div className="w-32 h-32 mx-auto rounded-full overflow-hidden border-4 border-white/20 mb-6 shadow-xl">
+                <ImageWithFallback
+                  src={matchedAthlete.image}
+                  alt={matchedAthlete.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <button
+                onClick={() => setMatchedAthlete(null)}
+                className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-400 text-white font-bold rounded-2xl hover:opacity-90 transition-opacity shadow-lg shadow-rose-500/25"
+              >
+                Keep Swiping
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Discovery Settings Drawer */}
       <DiscoverySettings
