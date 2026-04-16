@@ -1,8 +1,13 @@
 import { motion } from 'motion/react';
+import { useNavigate } from 'react-router';
+import { useAuth } from '../context/AuthContext';
 
 const heroImage = '/images/hero-couple.jpg';
 
 export function Hero() {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
   return (
     <section className="relative pt-32 pb-20 px-6 min-h-[90vh] flex items-center justify-center overflow-hidden">
         {/* Background elements to mimic the reference image */}
@@ -44,10 +49,16 @@ export function Hero() {
                     transition={{ duration: 0.6, delay: 0.4 }}
                     className="flex flex-wrap gap-4 pt-4"
                  >
-                    <button className="bg-white text-purple-900 px-8 py-4 rounded-full text-lg font-bold hover:bg-purple-100 transition-transform hover:scale-105 shadow-lg shadow-purple-900/20 cursor-pointer">
+                    <button
+                        onClick={() => navigate(isAuthenticated ? '/discover' : '/login')}
+                        className="bg-white text-purple-900 px-8 py-4 rounded-full text-lg font-bold hover:bg-purple-100 transition-transform hover:scale-105 shadow-lg shadow-purple-900/20 cursor-pointer"
+                    >
                         Find Your Match
                     </button>
-                    <button className="px-8 py-4 rounded-full text-lg font-medium border border-white/30 hover:bg-white/10 transition-colors text-white cursor-pointer">
+                    <button
+                        onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+                        className="px-8 py-4 rounded-full text-lg font-medium border border-white/30 hover:bg-white/10 transition-colors text-white cursor-pointer"
+                    >
                         How It Works
                     </button>
                  </motion.div>

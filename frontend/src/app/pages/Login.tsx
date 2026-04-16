@@ -6,16 +6,18 @@ import api from '@/app/lib/api';
 import { useAuth } from '@/app/context/AuthContext';
 
 export function Login() {
-  const { isAuthenticated, login, user } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const { isAuthenticated, isAdmin, user, login } = useAuth();
+  const navigate = useNavigate();
 
   if (isAuthenticated) {
-    return <Navigate to={user?.onboardingComplete ? '/discover' : '/onboarding/profile'} replace />;
+    const dest = isAdmin
+      ? '/admin/home'
+      : user?.onboardingComplete ? '/discover' : '/onboarding/profile';
+    return <Navigate to={dest} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,13 +26,13 @@ export function Login() {
     setError('');
 
     try {
-      const response = await api.post('/api/auth/login', {
-        email,
-        password,
-      });
-
-      login(response.data.token, response.data.user, rememberMe);
-      navigate('/discover');
+      const response = await api.post('/api/auth/login', { email, password });
+      const { token, user: loggedIn } = response.data;
+      login(token, loggedIn);
+      const dest = loggedIn.role === 'admin'
+        ? '/admin/home'
+        : loggedIn.onboardingComplete ? '/discover' : '/onboarding/profile';
+      navigate(dest, { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {
@@ -89,18 +91,11 @@ export function Login() {
                     />
                 </div>
 
-                <div
-                  className="flex items-center gap-3 pl-1 cursor-pointer select-none"
-                  onClick={() => setRememberMe(v => !v)}
-                >
-                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${rememberMe ? 'bg-purple-500 border-purple-400' : 'bg-white/10 border-white/30 hover:border-white/60'}`}>
-                        {rememberMe && (
-                          <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                            <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
+                <div className="flex items-center gap-3 pl-1 group cursor-pointer">
+                    <div className="w-5 h-5 rounded flex items-center justify-center bg-white/10 border border-white/30 group-hover:border-white/60 transition-colors">
+                        {/* Check icon would go here when checked */}
                     </div>
-                    <span className="text-sm font-medium text-white/70 hover:text-white transition-colors">Remember me</span>
+                    <label htmlFor="remember" className="text-sm font-medium text-white/70 group-hover:text-white transition-colors cursor-pointer select-none">Remember me</label>
                 </div>
 
                 <button 
