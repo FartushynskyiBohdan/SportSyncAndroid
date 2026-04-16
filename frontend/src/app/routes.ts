@@ -6,6 +6,9 @@ import { Discovery } from "./pages/Discover";
 import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
+import { Settings } from "./pages/Settings";
+import { SettingsDeleteAccount } from "./pages/SettingsDeleteAccount";
+import { SettingsPassword } from "./pages/SettingsPassword";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
 import { DesignSystem } from "./pages/DesignSystem";
@@ -69,6 +72,9 @@ export const router = createBrowserRouter([
       { path: "/matches", Component: Matches },
       { path: "/messages", Component: Messages },
       { path: "/profile", Component: Profile },
+      { path: "/settings", Component: Settings },
+      { path: "/settings/password", Component: SettingsPassword },
+      { path: "/settings/delete-account", Component: SettingsDeleteAccount },
     ],
   },
 
