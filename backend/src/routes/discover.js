@@ -1,35 +1,9 @@
 const express = require('express');
 const db      = require('../config/database');
 const auth    = require('../middleware/auth');
+const { iconForSport } = require('../lib/sportIcons');
 
 const router = express.Router();
-
-/* ─── Sport emoji map ─── */
-
-const SPORT_ICONS = {
-  Football:        '⚽',
-  Basketball:      '🏀',
-  Rugby:           '🏉',
-  Volleyball:      '🏐',
-  Hockey:          '🏒',
-  Boxing:          '🥊',
-  MMA:             '🥋',
-  CrossFit:        '🏋️',
-  Swimming:        '🏊',
-  Surfing:         '🏄',
-  Rowing:          '🚣',
-  Running:         '🏃',
-  'Trail Running': '🥾',
-  Cycling:         '🚴',
-  Triathlon:       '🏅',
-  Skiing:          '⛷️',
-  Tennis:          '🎾',
-  Golf:            '⛳',
-  Gymnastics:      '🤸',
-  Yoga:            '🧘',
-  'Rock Climbing': '🧗',
-  Hiking:          '🥾',
-};
 
 /* ─── Tag helper ─── */
 
@@ -195,7 +169,7 @@ router.get('/discover', auth, async (req, res) => {
         distance:  'Nearby',  // placeholder until distance calculation is implemented
         image:     userPhotos[0]?.photo_url || '',
         sports:    userSports.map(s => ({
-          icon:  SPORT_ICONS[s.sport_name] || '🏅',
+          icon:  iconForSport(s.sport_name),
           name:  s.sport_name,
           level: s.level_name,
         })),
