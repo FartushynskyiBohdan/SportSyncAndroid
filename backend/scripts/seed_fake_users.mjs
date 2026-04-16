@@ -190,9 +190,23 @@ async function main() {
         [userId, firstName, lastName, birthDate, genderId, cityId, bio],
       );
 
-      // Photos — drawn from primary sport pool, unique within this user
+      // Photos — drawn from the gender-appropriate bucket of the primary sport pool
       const photoCount = photoDistributionShuffled[i - 1];
-      const availablePhotos = photoPool[primarySport] || [];
+      const sportEntry = photoPool[primarySport];
+      let availablePhotos;
+      if (sportEntry && typeof sportEntry === 'object' && !Array.isArray(sportEntry)) {
+        // New gendered pool: { male: [...], female: [...] }
+        const bucket = genderId === 1 ? 'male' : genderId === 2 ? 'female' : null;
+        if (bucket && sportEntry[bucket]?.length) {
+          availablePhotos = sportEntry[bucket];
+        } else {
+          // Non-binary / prefer-not-to-say: merge both buckets
+          availablePhotos = [...(sportEntry.male || []), ...(sportEntry.female || [])];
+        }
+      } else {
+        // Fallback for legacy flat array pool
+        availablePhotos = Array.isArray(sportEntry) ? sportEntry : [];
+      }
       const userPhotos = pickUnique(availablePhotos, photoCount);
       for (let p = 0; p < userPhotos.length; p++) {
         await conn.execute(

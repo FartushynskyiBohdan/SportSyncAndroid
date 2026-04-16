@@ -12,7 +12,7 @@ if (!PEXELS_API_KEY) {
   process.exit(1);
 }
 
-// Sport -> search query (tweaked to steer Pexels toward real athletic photos)
+// Sport -> base search query. Gender prefix is prepended automatically.
 const SPORT_QUERIES = {
   Football:        'soccer player',
   Basketball:      'basketball player',
@@ -40,18 +40,14 @@ const SPORT_QUERIES = {
 
 const PER_PAGE = 10;
 
-async function fetchSport(sport, query) {
+async function fetchPhotos(query) {
   const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=${PER_PAGE}&orientation=portrait`;
   const res = await fetch(url, { headers: { Authorization: PEXELS_API_KEY } });
   if (!res.ok) {
-    throw new Error(`Pexels ${res.status} for ${sport}: ${await res.text()}`);
+    throw new Error(`Pexels ${res.status} for "${query}": ${await res.text()}`);
   }
   const data = await res.json();
-  const urls = (data.photos || []).map((p) => p.src.large).filter(Boolean);
-  if (urls.length === 0) {
-    console.warn(`  [!] No photos for ${sport}`);
-  }
-  return urls;
+  return (data.photos || []).map((p) => p.src.large).filter(Boolean);
 }
 
 async function main() {
@@ -63,18 +59,33 @@ async function main() {
   let newCount = 0;
 
   for (const sport of sports) {
-    if (pool[sport]?.length >= 6) {
-      console.log(`[skip] ${sport} (${pool[sport].length} cached)`);
+    const existing = pool[sport];
+    const alreadyDone =
+      existing &&
+      typeof existing === 'object' &&
+      !Array.isArray(existing) &&
+      existing.male?.length >= 6 &&
+      existing.female?.length >= 6;
+
+    if (alreadyDone) {
+      console.log(`[skip] ${sport} (${existing.male.length}m / ${existing.female.length}f cached)`);
       continue;
     }
+
+    const base = SPORT_QUERIES[sport];
     try {
-      const urls = await fetchSport(sport, SPORT_QUERIES[sport]);
-      pool[sport] = urls;
+      const [maleUrls, femaleUrls] = await Promise.all([
+        fetchPhotos(`male ${base}`),
+        fetchPhotos(`female ${base}`),
+      ]);
+
+      pool[sport] = { male: maleUrls, female: femaleUrls };
       newCount += 1;
-      console.log(`[ok]   ${sport} -> ${urls.length} photos`);
+      console.log(`[ok]   ${sport} -> ${maleUrls.length}m / ${femaleUrls.length}f photos`);
       writeFileSync(OUTPUT_PATH, JSON.stringify(pool, null, 2));
-      // Mild pacing so we stay well under 200/hr on any plan
-      await new Promise((r) => setTimeout(r, 350));
+
+      // Mild pacing — two requests were just fired, give Pexels a moment
+      await new Promise((r) => setTimeout(r, 500));
     } catch (err) {
       console.error(`[fail] ${sport}: ${err.message}`);
     }
