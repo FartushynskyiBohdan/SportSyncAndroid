@@ -182,19 +182,14 @@ export function Matches() {
   }, [fetchMatches]);
 
   useEffect(() => {
-    const interval = window.setInterval(async () => {
-      try {
-        const res = await apiClient.get<Match[]>('/api/matches');
-        setMatches(res.data.map(withComputedOnline));
-      } catch {
-        // Keep existing data if background refresh fails.
-      }
+    const interval = window.setInterval(() => {
+      fetchMatches();
     }, MATCHES_POLL_INTERVAL_MS);
 
     return () => {
       window.clearInterval(interval);
     };
-  }, []);
+  }, [fetchMatches]);
 
   const sorted = sortMatches(matches, sort);
   const currentLabel = SORT_OPTIONS.find(o => o.value === sort)?.label;
