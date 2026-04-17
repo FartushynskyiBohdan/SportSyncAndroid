@@ -5,7 +5,7 @@ import { Navbar } from '../components/Navbar';
 import apiClient from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
-const POLL_INTERVAL_MS = 5000;
+const POLL_INTERVAL_MS = 15000;
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 type Message = {

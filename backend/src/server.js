@@ -12,8 +12,7 @@ const adminRoutes = require('./routes/admin');
 const usersRoutes = require('./routes/users');
 
 const app = express();
-const HOST = '127.0.0.1';
-const BASE_PORT = Number(process.env.PORT) || 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware  
 app.use(cors());
@@ -34,23 +33,6 @@ app.get('/', (req, res) => {
   res.json({ message: 'SportSync Backend API' });
 });
 
-const startServer = (port, retriesLeft = 10) => {
-  const server = app.listen(port, HOST, () => {
-    console.log(`Server running on port ${port}`);
-  });
-
-  server.on('error', (error) => {
-    const canRetry = !process.env.PORT && error.code === 'EADDRINUSE' && retriesLeft > 0;
-
-    if (canRetry) {
-      console.warn(`Port ${port} is in use, retrying on port ${port + 1}...`);
-      startServer(port + 1, retriesLeft - 1);
-      return;
-    }
-
-    console.error('Failed to start server:', error.message);
-    process.exit(1);
-  });
-};
-
-startServer(BASE_PORT);
+app.listen(PORT, '127.0.0.1', () => {
+  console.log(`Server running on port ${PORT}`);
+});
