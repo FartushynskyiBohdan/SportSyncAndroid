@@ -1,6 +1,10 @@
 import { Search, MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
+import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/app/context/AuthContext';
+import apiClient from '@/app/lib/api';
+
+const PRESENCE_PING_INTERVAL_MS = 60_000;
 
 export function Navbar() {
   const navigate = useNavigate();
@@ -21,6 +25,38 @@ export function Navbar() {
       ? 'text-purple-300'
       : 'hover:text-purple-300 transition-colors';
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let cancelled = false;
+    const ping = async () => {
+      if (cancelled) return;
+      try {
+        await apiClient.get('/api/auth/presence/ping');
+      } catch {
+        // Best-effort heartbeat.
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        ping();
+      }
+    };
+
+    ping();
+    const interval = window.setInterval(ping, PRESENCE_PING_INTERVAL_MS);
+    window.addEventListener('focus', ping);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', ping);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isAuthenticated]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#2E1065]/80 backdrop-blur-md border-b border-white/10 text-white">
