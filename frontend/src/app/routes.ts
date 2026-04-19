@@ -6,6 +6,7 @@ import { Discovery } from "./pages/Discover";
 import { Matches } from "./pages/Matches";
 import { Messages } from "./pages/Messages";
 import { Profile } from "./pages/Profile";
+import { ProfileEdit } from "./pages/ProfileEdit";
 import { Settings } from "./pages/Settings";
 import { SettingsDeleteAccount } from "./pages/SettingsDeleteAccount";
 import { SettingsPassword } from "./pages/SettingsPassword";
@@ -72,6 +73,7 @@ export const router = createBrowserRouter([
       { path: "/matches", Component: Matches },
       { path: "/messages", Component: Messages },
       { path: "/profile", Component: Profile },
+      { path: "/profile/edit", Component: ProfileEdit },
       { path: "/profile/:userId", Component: Profile },
       { path: "/settings", Component: Settings },
       { path: "/settings/password", Component: SettingsPassword },

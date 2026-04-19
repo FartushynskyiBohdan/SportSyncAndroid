@@ -4,7 +4,7 @@ import {
   Heart, MessageSquare, Flag, Ban,
   MapPin, ChevronLeft, ChevronRight,
   Activity, Trophy, Target, HelpCircle,
-  Loader2, RefreshCw, X,
+  Loader2, RefreshCw, X, Pencil,
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
@@ -426,13 +426,23 @@ function OwnProfilePage() {
       <Navbar />
       <div className="max-w-5xl mx-auto px-4 md:px-6 pt-28 pb-24">
 
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white transition-colors mb-6 group"
-        >
-          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white transition-colors group"
+          >
+            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            Back
+          </button>
+
+          <button
+            onClick={() => navigate('/profile/edit')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white/70 hover:text-white transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit Profile
+          </button>
+        </div>
 
         {/* ── Top split: gallery + summary ── */}
         <div className="grid lg:grid-cols-5 gap-8 mb-8">
