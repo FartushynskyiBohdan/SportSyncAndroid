@@ -13,6 +13,31 @@ import {
 } from '../components/ui/tooltip';
 import apiClient, { isAxiosError } from '../lib/api';
 
+/* ─── Own-profile type (no compatibility / relation) ─── */
+
+type OwnUserSport = {
+  icon:            string;
+  name:            string;
+  level:           string;
+  frequency:       string;
+  yearsExperience: number | null;
+};
+
+type OwnUserProfile = {
+  id:               number;
+  name:             string;
+  age:              number;
+  city:             string;
+  country:          string;
+  bio:              string | null;
+  goal:             string | null;
+  lastActive:       string | null;
+  isOnline:         boolean;
+  photos:           string[];
+  primaryFrequency: string | null;
+  sports:           OwnUserSport[];
+};
+
 /* ─── API types (mirror GET /api/users/:id) ─── */
 
 type CompatMetric = { pct: number; detail: string };
@@ -117,7 +142,7 @@ function PhotoGallery({ photos, name }: { photos: string[]; name: string }) {
         <ImageWithFallback
           src={safePhotos[idx]}
           alt={`${name}'s photo`}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+          className="w-full h-full object-cover" // removed zoom on hover
         />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 pointer-events-none" />
@@ -240,18 +265,204 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function OwnProfilePlaceholder() {
+/* ─── Shared profile-content sub-components ─── */
+
+function ProfileHeader({ name, age, city, country, isOnline, sports, primaryFrequency }: {
+  name: string; age: number; city: string; country: string; isOnline: boolean;
+  sports: OwnUserSport[]; primaryFrequency: string | null;
+}) {
+  const locationLabel = country ? `${city}, ${country}` : city;
   return (
-    <FullPageState>
-      <div className="w-20 h-20 bg-purple-500/20 rounded-full flex items-center justify-center mb-6">
-        <Target className="w-10 h-10 text-purple-300" />
+    <div>
+      <h1 className="text-4xl md:text-5xl font-black tracking-tight font-heading">
+        {name}, {age}
+      </h1>
+      <div className="flex flex-wrap items-center gap-3 mt-2">
+        <span className="flex items-center gap-1.5 text-white/70 text-sm">
+          <MapPin className="w-4 h-4 text-purple-300" />
+          {locationLabel}
+        </span>
+        {isOnline && (
+          <span className="flex items-center gap-1.5 text-green-400 text-sm font-medium">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            Active now
+          </span>
+        )}
       </div>
-      <h3 className="text-2xl font-bold font-heading mb-2">Your profile</h3>
-      <p className="text-white/60 text-sm max-w-sm">
-        The own-profile view is coming soon. For now, visit another user's profile from
-        Discover or Matches.
+      {sports.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-4">
+          {sports.map(s => (
+            <span
+              key={s.name}
+              className="flex items-center gap-1.5 bg-white/10 border border-white/15 text-sm font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm"
+            >
+              {s.icon} {s.name}
+            </span>
+          ))}
+          {primaryFrequency && (
+            <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
+              🗓 {primaryFrequency}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AboutCard({ name, bio }: { name: string; bio: string | null }) {
+  return (
+    <Card>
+      <SectionTitle>About {name}</SectionTitle>
+      <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">
+        {bio || 'No bio yet.'}
       </p>
-    </FullPageState>
+    </Card>
+  );
+}
+
+function LookingForCard({ goal }: { goal: string | null }) {
+  return (
+    <Card>
+      <SectionTitle>Looking for</SectionTitle>
+      <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl px-4 py-4">
+        <div className="w-10 h-10 bg-purple-500/20 border border-purple-400/20 rounded-xl flex items-center justify-center shrink-0">
+          <Target className="w-5 h-5 text-purple-300" />
+        </div>
+        <span className="font-semibold text-white">
+          {goal || 'Not specified'}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function SportsAndTrainingCards({ sports }: { sports: OwnUserSport[] }) {
+  return (
+    <>
+      <Card>
+        <SectionTitle>Sports & Training</SectionTitle>
+        {sports.length > 0 ? (
+          <div className="space-y-3">
+            {sports.map(sport => (
+              <div
+                key={sport.name}
+                className="flex items-center justify-between bg-white/5 border border-white/5 rounded-2xl px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{sport.icon}</span>
+                  <span className="font-semibold text-sm">{sport.name}</span>
+                </div>
+                <LevelBadge level={sport.level} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-white/50">No sports added yet.</p>
+        )}
+      </Card>
+
+      <Card>
+        <SectionTitle>Training Details</SectionTitle>
+        {sports.length > 0 ? (
+          <div className="space-y-3">
+            {sports.map(sport => (
+              <div
+                key={sport.name}
+                className="bg-white/5 border border-white/5 rounded-2xl px-4 py-3 flex flex-col gap-1.5"
+              >
+                <div className="flex items-center gap-2 text-white/80">
+                  <span className="text-lg">{sport.icon}</span>
+                  <span className="font-semibold text-sm">{sport.name}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pl-7 text-xs">
+                  <span className="flex items-center gap-1 text-white/60">
+                    <Activity className="w-3 h-3" />
+                    {sport.frequency}
+                  </span>
+                  {typeof sport.yearsExperience === 'number' && (
+                    <span className="flex items-center gap-1 text-white/60">
+                      <Trophy className="w-3 h-3" />
+                      {sport.yearsExperience} {sport.yearsExperience === 1 ? 'yr' : 'yrs'} exp.
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-white/50">No training details available.</p>
+        )}
+      </Card>
+    </>
+  );
+}
+
+/* ─── Own-profile page ─── */
+
+function OwnProfilePage() {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<OwnUserProfile | null>(null);
+  const [status, setStatus] = useState<'loading' | 'error' | 'idle'>('loading');
+
+  const fetchProfile = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const res = await apiClient.get<OwnUserProfile>('/api/users/me');
+      setProfile(res.data);
+      setStatus('idle');
+    } catch {
+      setStatus('error');
+    }
+  }, []);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  if (status === 'loading') return <LoadingState />;
+  if (status === 'error' || !profile) return <ErrorState onRetry={fetchProfile} />;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans overflow-x-hidden">
+      <Navbar />
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-28 pb-24">
+
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white transition-colors mb-6 group"
+        >
+          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+          Back
+        </button>
+
+        {/* ── Top split: gallery + summary ── */}
+        <div className="grid lg:grid-cols-5 gap-8 mb-8">
+
+          <div className="lg:col-span-2">
+            <PhotoGallery photos={profile.photos} name={profile.name} />
+          </div>
+
+          <div className="lg:col-span-3 flex flex-col gap-6">
+            <ProfileHeader
+              name={profile.name}
+              age={profile.age}
+              city={profile.city}
+              country={profile.country}
+              isOnline={profile.isOnline}
+              sports={profile.sports}
+              primaryFrequency={profile.primaryFrequency}
+            />
+            <AboutCard name={profile.name} bio={profile.bio} />
+            <LookingForCard goal={profile.goal} />
+          </div>
+        </div>
+
+        {/* ── Detail cards ── */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <SportsAndTrainingCards sports={profile.sports} />
+        </div>
+
+      </div>
+    </div>
   );
 }
 
@@ -322,16 +533,15 @@ export function Profile() {
     navigate(`/messages?matchId=${profile.relation.matchId}`);
   };
 
-  /* ─── Early returns ─── */
+  /* ─── Route to own-profile page if no userId param ─── */
+  if (!userId) return <OwnProfilePage />;
 
-  if (!userId) return <OwnProfilePlaceholder />;
   if (status === 'loading')  return <LoadingState />;
   if (status === 'notfound') return <NotFoundState />;
   if (status === 'error' || !profile) return <ErrorState onRetry={fetchProfile} />;
 
   /* ─── Derived view-model ─── */
 
-  const locationLabel = profile.country ? `${profile.city}, ${profile.country}` : profile.city;
   const likeLabel = justMatched ? "It's a match!" : profile.relation.alreadyLiked ? 'Liked' : 'Like';
   const canMessage = profile.relation.matched && profile.relation.matchId !== null;
 
@@ -362,43 +572,15 @@ export function Profile() {
             {/* Profile summary */}
             <div className="lg:col-span-3 flex flex-col gap-6">
 
-              {/* Name & basics */}
-              <div>
-                <h1 className="text-4xl md:text-5xl font-black tracking-tight font-heading">
-                  {profile.name}, {profile.age}
-                </h1>
-                <div className="flex flex-wrap items-center gap-3 mt-2">
-                  <span className="flex items-center gap-1.5 text-white/70 text-sm">
-                    <MapPin className="w-4 h-4 text-purple-300" />
-                    {locationLabel}
-                  </span>
-                  {profile.isOnline && (
-                    <span className="flex items-center gap-1.5 text-green-400 text-sm font-medium">
-                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      Active now
-                    </span>
-                  )}
-                </div>
-
-                {/* Sport quick-tags */}
-                {profile.sports.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4">
-                    {profile.sports.map(s => (
-                      <span
-                        key={s.name}
-                        className="flex items-center gap-1.5 bg-white/10 border border-white/15 text-sm font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm"
-                      >
-                        {s.icon} {s.name}
-                      </span>
-                    ))}
-                    {profile.primaryFrequency && (
-                      <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
-                        🗓 {profile.primaryFrequency}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+              <ProfileHeader
+                name={profile.name}
+                age={profile.age}
+                city={profile.city}
+                country={profile.country}
+                isOnline={profile.isOnline}
+                sports={profile.sports}
+                primaryFrequency={profile.primaryFrequency}
+              />
 
               {/* Compatibility */}
               <Card>
@@ -473,62 +655,7 @@ export function Profile() {
           {/* ── Detail cards ── */}
           <div className="grid md:grid-cols-2 gap-6">
 
-            {/* Sports & Training */}
-            <Card>
-              <SectionTitle>Sports & Training</SectionTitle>
-              {profile.sports.length > 0 ? (
-                <div className="space-y-3">
-                  {profile.sports.map(sport => (
-                    <div
-                      key={sport.name}
-                      className="flex items-center justify-between bg-white/5 border border-white/5 rounded-2xl px-4 py-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{sport.icon}</span>
-                        <span className="font-semibold text-sm">{sport.name}</span>
-                      </div>
-                      <LevelBadge level={sport.level} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-white/50">No sports added yet.</p>
-              )}
-            </Card>
-
-            {/* Training Details (repurposed from "Training Stats") */}
-            <Card>
-              <SectionTitle>Training Details</SectionTitle>
-              {profile.sports.length > 0 ? (
-                <div className="space-y-3">
-                  {profile.sports.map(sport => (
-                    <div
-                      key={sport.name}
-                      className="bg-white/5 border border-white/5 rounded-2xl px-4 py-3 flex flex-col gap-1.5"
-                    >
-                      <div className="flex items-center gap-2 text-white/80">
-                        <span className="text-lg">{sport.icon}</span>
-                        <span className="font-semibold text-sm">{sport.name}</span>
-                      </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 pl-7 text-xs">
-                        <span className="flex items-center gap-1 text-white/60">
-                          <Activity className="w-3 h-3" />
-                          {sport.frequency}
-                        </span>
-                        {typeof sport.yearsExperience === 'number' && (
-                          <span className="flex items-center gap-1 text-white/60">
-                            <Trophy className="w-3 h-3" />
-                            {sport.yearsExperience} {sport.yearsExperience === 1 ? 'yr' : 'yrs'} exp.
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-white/50">No training details available.</p>
-              )}
-            </Card>
+            <SportsAndTrainingCards sports={profile.sports} />
 
             {/* Bio */}
             <Card className="md:col-span-2">
