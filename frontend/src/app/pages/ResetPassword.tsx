@@ -3,7 +3,9 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'motion/react';
 import { Link, useSearchParams } from 'react-router';
 import { Lock, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import isStrongPassword from 'validator/lib/isStrongPassword';
 import { Navbar } from '../components/Navbar';
+import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import api from '@/app/lib/api';
 
 interface ResetPasswordForm {
@@ -158,14 +160,9 @@ export function ResetPassword() {
                       }`}
                       {...register('password', {
                         required: 'Password is required',
-                        minLength: {
-                          value: 8,
-                          message: 'Password must be at least 8 characters',
-                        },
-                        pattern: {
-                          value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).*$/,
-                          message: 'Must include uppercase, lowercase, and a number',
-                        },
+                        validate: (value) =>
+                          isStrongPassword(value, { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 0 }) ||
+                          'Must be 8+ characters with uppercase, lowercase, and a number',
                       })}
                     />
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -178,12 +175,9 @@ export function ResetPassword() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  {errors.password ? (
+                  <PasswordStrengthBar password={passwordValue ?? ''} />
+                  {errors.password && (
                     <p className="text-xs text-rose-400 pl-1">{errors.password.message}</p>
-                  ) : (
-                    <p className="text-xs text-white/40 pl-1">
-                      Min 8 characters, one uppercase, one lowercase, one number
-                    </p>
                   )}
                 </div>
 
