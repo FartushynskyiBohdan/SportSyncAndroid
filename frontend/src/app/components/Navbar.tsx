@@ -1,4 +1,4 @@
-import { Search, MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
+import { MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
 import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/app/context/AuthContext';
@@ -74,18 +74,6 @@ export function Navbar() {
           {/* Search, nav links, icons - only when authenticated */}
           {isAuthenticated && (
             <>
-              {/* Search Bar - hidden on mobile and discover page */}
-              {!isDiscovery && (
-                <div className="w-48 md:w-64 lg:w-80 relative hidden md:block shrink-0">
-                  <input
-                    type="text"
-                    placeholder="Advanced Search..."
-                    className="w-full bg-white/10 border border-white/20 rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder-white/50 focus:outline-none focus:bg-white/20 transition-colors"
-                  />
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
-                </div>
-              )}
-
               {/* Links */}
               <div className="hidden lg:flex items-center gap-6 text-sm font-medium">
                 <button

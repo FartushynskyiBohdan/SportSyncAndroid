@@ -466,4 +466,117 @@ router.patch('/users/onboarding-complete', auth, async (req, res) => {
   }
 });
 
+// ─── Profile edit endpoints ───────────────────────────────────────────────────
+// These belong here for co-location with the photo/bio/sports onboarding
+// endpoints they depend on, but semantically they are profile management routes,
+// not onboarding. If a dedicated profile.js router is introduced later, these
+// three (DELETE photos/:id, GET /profile/edit-data, PATCH /profile/goal) should
+// move there alongside the upload/reorder/bio/sports endpoints.
+
+// DELETE /api/onboarding/photos/:id
+router.delete('/onboarding/photos/:id', auth, async (req, res) => {
+  const userId  = req.userId;
+  const photoId = Number(req.params.id);
+
+  if (!Number.isInteger(photoId) || photoId <= 0) {
+    return res.status(400).json({ error: 'Invalid photo id.' });
+  }
+
+  try {
+    const [rows] = await db.execute(
+      'SELECT photo_url FROM user_photos WHERE photo_id = ? AND user_id = ?',
+      [photoId, userId]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Photo not found.' });
+    }
+    const { photo_url } = rows[0];
+
+    await db.execute(
+      'DELETE FROM user_photos WHERE photo_id = ? AND user_id = ?',
+      [photoId, userId]
+    );
+
+    // Best-effort disk cleanup for locally-stored uploads only.
+    if (photo_url && photo_url.startsWith('/uploads/')) {
+      const filename = path.basename(photo_url);
+      const filePath = path.join(UPLOADS_DIR, filename);
+      fs.unlink(filePath, () => {});
+    }
+
+    res.json({ message: 'Photo deleted.' });
+  } catch (error) {
+    console.error('Error deleting photo:', error);
+    res.status(500).json({ error: 'Failed to delete photo.' });
+  }
+});
+
+// GET /api/profile/edit-data
+router.get('/profile/edit-data', auth, async (req, res) => {
+  const userId = req.userId;
+
+  try {
+    const [profileRows] = await db.execute(
+      'SELECT bio FROM profiles WHERE user_id = ?',
+      [userId]
+    );
+    const [photoRows] = await db.execute(
+      `SELECT photo_id, photo_url, display_order
+       FROM user_photos
+       WHERE user_id = ?
+       ORDER BY display_order ASC, photo_id ASC`,
+      [userId]
+    );
+    const [sportRows] = await db.execute(
+      'SELECT sport_id, skill_level_id, frequency_id, years_experience FROM user_sports WHERE user_id = ?',
+      [userId]
+    );
+    const [prefRows] = await db.execute(
+      'SELECT goal_id FROM preferences WHERE user_id = ?',
+      [userId]
+    );
+
+    res.json({
+      bio:     profileRows[0]?.bio ?? null,
+      goal_id: prefRows[0]?.goal_id ?? null,
+      photos:  photoRows,
+      sports:  sportRows,
+    });
+  } catch (error) {
+    console.error('Error fetching edit data:', error);
+    res.status(500).json({ error: 'Failed to fetch profile data.' });
+  }
+});
+
+// PATCH /api/profile/goal
+router.patch('/profile/goal', auth, async (req, res) => {
+  const userId = req.userId;
+  const { goal_id } = req.body;
+  const gid = Number(goal_id);
+
+  if (!goal_id || !Number.isInteger(gid) || gid <= 0) {
+    return res.status(400).json({ error: 'goal_id is required.' });
+  }
+
+  try {
+    const [goalRows] = await db.execute(
+      'SELECT goal_id FROM relationship_goals WHERE goal_id = ?',
+      [gid]
+    );
+    if (goalRows.length === 0) {
+      return res.status(400).json({ error: 'Invalid goal.' });
+    }
+
+    await db.execute(
+      'UPDATE preferences SET goal_id = ? WHERE user_id = ?',
+      [gid, userId]
+    );
+
+    res.json({ message: 'Goal saved.' });
+  } catch (error) {
+    console.error('Error saving goal:', error);
+    res.status(500).json({ error: 'Failed to save goal.' });
+  }
+});
+
 module.exports = router;

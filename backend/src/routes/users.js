@@ -41,6 +41,102 @@ function goalAlignmentPct(viewerGoal, targetGoal) {
   return 30;
 }
 
+/* ─── GET /api/users/me ─── */
+// declared before /users/:id so that express doesn't accidentally 
+// match "me" as an :id
+
+router.get('/users/me', auth, async (req, res) => {
+  const userId = req.userId;
+
+  try {
+    const [profileRows] = await db.execute(
+      `SELECT
+         pr.user_id,
+         pr.first_name,
+         pr.bio,
+         TIMESTAMPDIFF(YEAR, pr.birth_date, CURDATE()) AS age,
+         c.city_name,
+         co.country_name,
+         u.last_active,
+         rg.goal_name
+       FROM profiles pr
+       JOIN users u        ON u.user_id     = pr.user_id
+       JOIN cities c       ON c.city_id     = pr.city_id
+       JOIN countries co   ON co.country_id = c.country_id
+       LEFT JOIN preferences prf       ON prf.user_id = pr.user_id
+       LEFT JOIN relationship_goals rg ON rg.goal_id  = prf.goal_id
+       WHERE pr.user_id = ?
+         AND u.account_status = 'active'`,
+      [userId]
+    );
+
+    if (profileRows.length === 0) {
+      return res.status(404).json({ error: 'Profile not found.' });
+    }
+    const profile = profileRows[0];
+
+    const [photoRows] = await db.execute(
+      `SELECT photo_url
+       FROM user_photos
+       WHERE user_id = ?
+       ORDER BY display_order ASC, photo_id ASC`,
+      [userId]
+    );
+
+    const [sportRows] = await db.execute(
+      `SELECT
+         s.sport_name,
+         sl.level_name,
+         tf.frequency_label,
+         tf.sort_order AS frequency_sort,
+         us.years_experience
+       FROM user_sports us
+       JOIN sports s                ON s.sport_id         = us.sport_id
+       JOIN skill_levels sl         ON sl.skill_level_id  = us.skill_level_id
+       JOIN training_frequencies tf ON tf.frequency_id    = us.frequency_id
+       WHERE us.user_id = ?
+       ORDER BY sl.sort_order DESC, us.sport_id ASC`,
+      [userId]
+    );
+
+    const freqCounts = new Map();
+    for (const s of sportRows) {
+      freqCounts.set(s.frequency_label, (freqCounts.get(s.frequency_label) || 0) + 1);
+    }
+    const primaryFrequency = [...freqCounts.entries()]
+      .sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    const lastActiveMs = profile.last_active
+      ? new Date(profile.last_active).getTime()
+      : null;
+    const isOnline = lastActiveMs !== null && (Date.now() - lastActiveMs) < (5 * 60 * 1000);
+
+    res.json({
+      id:               profile.user_id,
+      name:             profile.first_name,
+      age:              profile.age,
+      city:             profile.city_name,
+      country:          profile.country_name,
+      bio:              profile.bio,
+      goal:             profile.goal_name,
+      lastActive:       profile.last_active,
+      isOnline,
+      photos:           photoRows.map(p => p.photo_url),
+      primaryFrequency,
+      sports: sportRows.map(s => ({
+        icon:            iconForSport(s.sport_name),
+        name:            s.sport_name,
+        level:           s.level_name,
+        frequency:       s.frequency_label,
+        yearsExperience: s.years_experience,
+      })),
+    });
+  } catch (error) {
+    console.error('Error fetching own profile:', error);
+    res.status(500).json({ error: 'Failed to fetch profile.' });
+  }
+});
+
 /* ─── GET /api/users/:id ─── */
 
 router.get('/users/:id', auth, async (req, res) => {
