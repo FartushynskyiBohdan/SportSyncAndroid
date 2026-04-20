@@ -11,7 +11,7 @@ import api, { isAxiosError } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { SettingsPanel, SettingsShell } from "../components/settings/SettingsShell";
 
-const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+import isEmail from 'validator/lib/isEmail';
 
 interface Gender {
   id: number;
