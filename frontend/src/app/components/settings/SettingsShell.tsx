@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
-import { AlertTriangle, ChevronLeft, LogOut, Settings as SettingsIcon, Shield, User } from "lucide-react";
+import { AlertTriangle, Ban, ChevronLeft, LogOut, Settings as SettingsIcon, Shield, User } from "lucide-react";
 import { Navbar } from "../Navbar";
 import { Button } from "../ui/button";
 import { useAuth } from "../../context/AuthContext";
@@ -45,6 +45,7 @@ export function SettingsShell({
   const isAccountPage = location.pathname === "/settings";
   const isPasswordPage = location.pathname === "/settings/password";
   const isDeleteAccountPage = location.pathname === "/settings/delete-account";
+  const isBlockedUsersPage = location.pathname === "/settings/blocked-users";
 
   const handleLogout = () => {
     logout();
@@ -112,6 +113,14 @@ export function SettingsShell({
                 >
                   <Shield className="h-4 w-4" />
                   Password
+                </Link>
+                <Link
+                  to="/settings/blocked-users"
+                  className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition-colors ${navClass(isBlockedUsersPage)}`}
+                  aria-current={isBlockedUsersPage ? "page" : undefined}
+                >
+                  <Ban className="h-4 w-4" />
+                  Blocked Users
                 </Link>
                 <Link
                   to="/settings/delete-account"

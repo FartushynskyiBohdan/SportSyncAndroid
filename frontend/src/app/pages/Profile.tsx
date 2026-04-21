@@ -1,50 +1,94 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
+﻿import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import {
   Heart, MessageSquare, Flag, Ban,
   MapPin, ChevronLeft, ChevronRight,
-  Clock, TrendingUp, Trophy, Zap, Target,
+  Activity, Trophy, Target, HelpCircle,
+  Loader2, RefreshCw, X, Pencil,
 } from 'lucide-react';
 import { Navbar } from '../components/Navbar';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '../components/ui/tooltip';
+import apiClient, { isAxiosError } from '../lib/api';
+import { ReportModal } from '../components/ReportModal';
+import { BlockDialog } from '../components/BlockDialog';
 
-/* ─── Data ─── */
+/* ΓöÇΓöÇΓöÇ Own-profile type (no compatibility / relation) ΓöÇΓöÇΓöÇ */
 
-const ATHLETE = {
-  name: 'Emma',
-  age: 26,
-  distance: '4 km away',
-  isOnline: true,
-  photos: [
-    'https://images.unsplash.com/photo-1771513699065-0f0f696341b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=900',
-    'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=900',
-    'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=900',
-  ],
-  sports: [
-    { icon: '🏃', name: 'Running',  level: 'Competitive'  },
-    { icon: '🚴', name: 'Cycling',  level: 'Intermediate' },
-  ],
-  frequency: '5x per week',
-  bio: "Training for my next marathon. I love early morning runs and exploring new trails. Looking for someone who shares the same passion for endurance sports and doesn't mind a 6 AM start 🌄",
-  goal: 'Marathon training partner',
-  stats: [
-    { label: 'Weekly Training', value: '8 hrs',        Icon: Clock       },
-    { label: 'Weekly Distance', value: '60 km',         Icon: TrendingUp  },
-    { label: 'Avg Pace',        value: '5:30 /km',      Icon: Zap         },
-    { label: 'Recent Race',     value: 'Half Marathon',  Icon: Trophy      },
-  ],
-  compatibility: [
-    { label: 'Shared Sports',          detail: 'Running, Cycling', pct: 85 },
-    { label: 'Training Frequency',     detail: 'High match',       pct: 80 },
-    { label: 'Lifestyle Compatibility',detail: 'Good',             pct: 72 },
-  ],
+type OwnUserSport = {
+  icon:            string;
+  name:            string;
+  level:           string;
+  frequency:       string;
+  yearsExperience: number | null;
 };
 
-/* ─── Small reusable bits ─── */
+type OwnUserProfile = {
+  id:               number;
+  name:             string;
+  age:              number;
+  city:             string;
+  country:          string;
+  bio:              string | null;
+  goal:             string | null;
+  lastActive:       string | null;
+  isOnline:         boolean;
+  photos:           string[];
+  primaryFrequency: string | null;
+  sports:           OwnUserSport[];
+};
+
+/* ΓöÇΓöÇΓöÇ API types (mirror GET /api/users/:id) ΓöÇΓöÇΓöÇ */
+
+type CompatMetric = { pct: number; detail: string };
+
+type Compatibility = {
+  sharedSports:      CompatMetric;
+  trainingFrequency: CompatMetric;
+  goalAlignment:     CompatMetric;
+};
+
+type Relation = {
+  isSelf:        boolean;
+  alreadyLiked:  boolean;
+  alreadyPassed: boolean;
+  matched:       boolean;
+  matchId:       number | null;
+  blockedByMe:   boolean;
+};
+
+type UserSport = {
+  icon:            string;
+  name:            string;
+  level:           string;
+  frequency:       string;
+  yearsExperience: number | null;
+};
+
+type UserProfile = {
+  id:               number;
+  name:             string;
+  age:              number;
+  city:             string;
+  country:          string;
+  bio:              string | null;
+  goal:             string | null;
+  lastActive:       string | null;
+  isOnline:         boolean;
+  photos:           string[];
+  primaryFrequency: string | null;
+  sports:           UserSport[];
+  compatibility:    Compatibility;
+  relation:         Relation;
+};
+
+/* ΓöÇΓöÇΓöÇ Small reusable bits ΓöÇΓöÇΓöÇ */
 
 function LevelBadge({ level }: { level: string }) {
   const map: Record<string, string> = {
-    'Competitive':  'bg-rose-500/20   text-rose-300   border border-rose-500/30',
+    'Professional': 'bg-rose-500/20   text-rose-300   border border-rose-500/30',
     'Advanced':     'bg-orange-500/20 text-orange-300 border border-orange-500/30',
     'Intermediate': 'bg-blue-500/20   text-blue-300   border border-blue-500/30',
     'Beginner':     'bg-green-500/20  text-green-300  border border-green-500/30',
@@ -85,34 +129,33 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ─── Photo Gallery ─── */
+/* ΓöÇΓöÇΓöÇ Photo Gallery ΓöÇΓöÇΓöÇ */
 
-function PhotoGallery({ photos }: { photos: string[] }) {
+function PhotoGallery({ photos, name }: { photos: string[]; name: string }) {
   const [idx, setIdx] = useState(0);
+  const safePhotos = photos.length > 0 ? photos : [''];
 
-  const prev = () => setIdx(i => (i - 1 + photos.length) % photos.length);
-  const next = () => setIdx(i => (i + 1)                 % photos.length);
+  const prev = () => setIdx(i => (i - 1 + safePhotos.length) % safePhotos.length);
+  const next = () => setIdx(i => (i + 1) % safePhotos.length);
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Main photo */}
-      <div className="relative w-full aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl shadow-black/40 group">
+      <div className="relative w-full aspect-[3/4] rounded-3xl overflow-hidden shadow-2xl shadow-black/40 group bg-white/5">
         <ImageWithFallback
-          src={photos[idx]}
-          alt="Profile photo"
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+          src={safePhotos[idx]}
+          alt={`${name}'s photo`}
+          className="w-full h-full object-cover" // removed zoom on hover
         />
 
-        {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 pointer-events-none" />
 
-        {/* Counter */}
-        <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md text-xs font-semibold px-2.5 py-1 rounded-full border border-white/10">
-          {idx + 1} / {photos.length}
-        </div>
+        {safePhotos.length > 1 && (
+          <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-md text-xs font-semibold px-2.5 py-1 rounded-full border border-white/10">
+            {idx + 1} / {safePhotos.length}
+          </div>
+        )}
 
-        {/* Arrows */}
-        {photos.length > 1 && (
+        {safePhotos.length > 1 && (
           <>
             <button
               onClick={prev}
@@ -128,224 +171,605 @@ function PhotoGallery({ photos }: { photos: string[] }) {
             >
               <ChevronRight className="w-5 h-5" />
             </button>
+
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+              {safePhotos.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIdx(i)}
+                  className={`h-1.5 rounded-full transition-all ${i === idx ? 'bg-white w-5' : 'bg-white/40 w-1.5'}`}
+                  aria-label={`Photo ${i + 1}`}
+                />
+              ))}
+            </div>
           </>
         )}
+      </div>
 
-        {/* Dot indicators */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-          {photos.map((_, i) => (
+      {safePhotos.length > 1 && (
+        <div className="flex gap-2">
+          {safePhotos.map((src, i) => (
             <button
               key={i}
               onClick={() => setIdx(i)}
-              className={`h-1.5 rounded-full transition-all ${i === idx ? 'bg-white w-5' : 'bg-white/40 w-1.5'}`}
-              aria-label={`Photo ${i + 1}`}
-            />
+              className={`flex-1 aspect-square rounded-xl overflow-hidden border-2 transition-all
+                ${i === idx ? 'border-purple-400 opacity-100' : 'border-transparent opacity-50 hover:opacity-75'}`}
+            >
+              <img src={src} alt={`Thumbnail ${i + 1}`} className="w-full h-full object-cover" />
+            </button>
           ))}
         </div>
-      </div>
+      )}
+    </div>
+  );
+}
 
-      {/* Thumbnail strip */}
-      <div className="flex gap-2">
-        {photos.map((src, i) => (
-          <button
-            key={i}
-            onClick={() => setIdx(i)}
-            className={`flex-1 aspect-square rounded-xl overflow-hidden border-2 transition-all
-              ${i === idx ? 'border-purple-400 opacity-100' : 'border-transparent opacity-50 hover:opacity-75'}`}
-          >
-            <img src={src} alt={`Thumbnail ${i + 1}`} className="w-full h-full object-cover" />
-          </button>
-        ))}
+/* ΓöÇΓöÇΓöÇ States: loading / error / 404 ΓöÇΓöÇΓöÇ */
+
+function FullPageState({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans">
+      <Navbar />
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-28 pb-24 flex flex-col items-center justify-center text-center">
+        {children}
       </div>
     </div>
   );
 }
 
-/* ─── Main Page ─── */
+function LoadingState() {
+  return (
+    <FullPageState>
+      <Loader2 className="w-10 h-10 text-purple-400 animate-spin mb-4" />
+      <p className="text-white/50 text-sm">Loading profileΓÇª</p>
+    </FullPageState>
+  );
+}
 
-export function Profile() {
+function NotFoundState() {
   const navigate = useNavigate();
-  const [liked, setLiked] = useState(false);
+  return (
+    <FullPageState>
+      <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center mb-6">
+        <X className="w-10 h-10 text-white/60" />
+      </div>
+      <h3 className="text-2xl font-bold font-heading mb-2">Profile unavailable</h3>
+      <p className="text-white/60 text-sm max-w-sm mb-6">
+        This user doesn't exist, isn't active, or hasn't finished setting up their profile.
+      </p>
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/15 border border-white/20 rounded-xl text-sm font-semibold transition-colors"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        Go back
+      </button>
+    </FullPageState>
+  );
+}
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <FullPageState>
+      <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
+        <X className="w-10 h-10 text-rose-400 opacity-70" />
+      </div>
+      <h3 className="text-xl font-bold font-heading mb-2">Something went wrong</h3>
+      <p className="text-white/60 text-sm max-w-sm mb-6">We couldn't load this profile. Please try again.</p>
+      <button
+        onClick={onRetry}
+        className="flex items-center gap-2 px-6 py-3 bg-purple-500/30 hover:bg-purple-500/50 border border-purple-400/30 rounded-xl text-sm font-semibold transition-colors"
+      >
+        <RefreshCw className="w-4 h-4" />
+        Try again
+      </button>
+    </FullPageState>
+  );
+}
+
+/* ΓöÇΓöÇΓöÇ Shared profile-content sub-components ΓöÇΓöÇΓöÇ */
+
+function ProfileHeader({ name, age, city, country, isOnline, sports, primaryFrequency, goal }: {
+  name: string; age: number; city: string; country: string; isOnline: boolean;
+  sports: OwnUserSport[]; primaryFrequency: string | null; goal: string | null;
+}) {
+  const locationLabel = country ? `${city}, ${country}` : city;
+  return (
+    <div>
+      <h1 className="text-4xl md:text-5xl font-black tracking-tight font-heading">
+        {name}, {age}
+      </h1>
+      <div className="flex flex-wrap items-center gap-3 mt-2">
+        <span className="flex items-center gap-1.5 text-white/70 text-sm">
+          <MapPin className="w-4 h-4 text-purple-300" />
+          {locationLabel}
+        </span>
+        {isOnline && (
+          <span className="flex items-center gap-1.5 text-green-400 text-sm font-medium">
+            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            Active now
+          </span>
+        )}
+      </div>
+      {sports.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-4">
+          {sports.map(s => (
+            <span
+              key={s.name}
+              className="flex items-center gap-1.5 bg-white/10 border border-white/15 text-sm font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm"
+            >
+              {s.icon} {s.name}
+            </span>
+          ))}
+          {primaryFrequency && (
+            <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
+              ≡ƒùô {primaryFrequency}
+            </span>
+          )}
+          {goal && (
+            <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
+              ≡ƒÄ» {goal}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AboutCard({ name, bio }: { name: string; bio: string | null }) {
+  return (
+    <Card>
+      <SectionTitle>About {name}</SectionTitle>
+      <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">
+        {bio || 'No bio yet.'}
+      </p>
+    </Card>
+  );
+}
+
+function LookingForCard({ goal }: { goal: string | null }) {
+  return (
+    <Card>
+      <SectionTitle>Looking for</SectionTitle>
+      <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl px-4 py-4">
+        <div className="w-10 h-10 bg-purple-500/20 border border-purple-400/20 rounded-xl flex items-center justify-center shrink-0">
+          <Target className="w-5 h-5 text-purple-300" />
+        </div>
+        <span className="font-semibold text-white">
+          {goal || 'Not specified'}
+        </span>
+      </div>
+    </Card>
+  );
+}
+
+function SportsAndTrainingCards({ sports }: { sports: OwnUserSport[] }) {
+  return (
+    <>
+      <Card>
+        <SectionTitle>Sports & Training</SectionTitle>
+        {sports.length > 0 ? (
+          <div className="space-y-3">
+            {sports.map(sport => (
+              <div
+                key={sport.name}
+                className="flex items-center justify-between bg-white/5 border border-white/5 rounded-2xl px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{sport.icon}</span>
+                  <span className="font-semibold text-sm">{sport.name}</span>
+                </div>
+                <LevelBadge level={sport.level} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-white/50">No sports added yet.</p>
+        )}
+      </Card>
+
+      <Card>
+        <SectionTitle>Training Details</SectionTitle>
+        {sports.length > 0 ? (
+          <div className="space-y-3">
+            {sports.map(sport => (
+              <div
+                key={sport.name}
+                className="bg-white/5 border border-white/5 rounded-2xl px-4 py-3 flex flex-col gap-1.5"
+              >
+                <div className="flex items-center gap-2 text-white/80">
+                  <span className="text-lg">{sport.icon}</span>
+                  <span className="font-semibold text-sm">{sport.name}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 pl-7 text-xs">
+                  <span className="flex items-center gap-1 text-white/60">
+                    <Activity className="w-3 h-3" />
+                    {sport.frequency}
+                  </span>
+                  {typeof sport.yearsExperience === 'number' && (
+                    <span className="flex items-center gap-1 text-white/60">
+                      <Trophy className="w-3 h-3" />
+                      {sport.yearsExperience} {sport.yearsExperience === 1 ? 'yr' : 'yrs'} exp.
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-white/50">No training details available.</p>
+        )}
+      </Card>
+    </>
+  );
+}
+
+/* ΓöÇΓöÇΓöÇ Own-profile page ΓöÇΓöÇΓöÇ */
+
+function OwnProfilePage() {
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<OwnUserProfile | null>(null);
+  const [status, setStatus] = useState<'loading' | 'error' | 'idle'>('loading');
+
+  const fetchProfile = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const res = await apiClient.get<OwnUserProfile>('/api/users/me');
+      setProfile(res.data);
+      setStatus('idle');
+    } catch {
+      setStatus('error');
+    }
+  }, []);
+
+  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+
+  if (status === 'loading') return <LoadingState />;
+  if (status === 'error' || !profile) return <ErrorState onRetry={fetchProfile} />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans overflow-x-hidden">
       <Navbar />
-
       <div className="max-w-5xl mx-auto px-4 md:px-6 pt-28 pb-24">
 
-        {/* Back link */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white transition-colors mb-6 group"
-        >
-          <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Matches
-        </button>
+        <div className="flex items-center justify-between mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white transition-colors group"
+          >
+            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            Back
+          </button>
 
-        {/* ── Top split: gallery + profile summary ── */}
+          <button
+            onClick={() => navigate('/profile/edit')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white/70 hover:text-white transition-colors"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit Profile
+          </button>
+        </div>
+
+        {/* ΓöÇΓöÇ Top split: gallery + summary ΓöÇΓöÇ */}
         <div className="grid lg:grid-cols-5 gap-8 mb-8">
 
-          {/* Photo gallery */}
           <div className="lg:col-span-2">
-            <PhotoGallery photos={ATHLETE.photos} />
+            <PhotoGallery photos={profile.photos} name={profile.name} />
           </div>
 
-          {/* Profile summary */}
           <div className="lg:col-span-3 flex flex-col gap-6">
+            <ProfileHeader
+              name={profile.name}
+              age={profile.age}
+              city={profile.city}
+              country={profile.country}
+              isOnline={profile.isOnline}
+              sports={profile.sports}
+              primaryFrequency={profile.primaryFrequency}
+              goal={profile.goal}
+            />
+            <AboutCard name={profile.name} bio={profile.bio} />
+            <LookingForCard goal={profile.goal} />
+          </div>
+        </div>
 
-            {/* Name & basics */}
-            <div>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h1 className="text-4xl md:text-5xl font-black tracking-tight font-heading">
-                    {ATHLETE.name}, {ATHLETE.age}
-                  </h1>
-                  <div className="flex flex-wrap items-center gap-3 mt-2">
-                    <span className="flex items-center gap-1.5 text-white/70 text-sm">
-                      <MapPin className="w-4 h-4 text-purple-300" />
-                      {ATHLETE.distance}
-                    </span>
-                    {ATHLETE.isOnline && (
-                      <span className="flex items-center gap-1.5 text-green-400 text-sm font-medium">
-                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                        Active now
-                      </span>
-                    )}
-                  </div>
+        {/* ΓöÇΓöÇ Detail cards ΓöÇΓöÇ */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <SportsAndTrainingCards sports={profile.sports} />
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ΓöÇΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇ */
+
+export function Profile() {
+  const navigate = useNavigate();
+  const { userId } = useParams<{ userId?: string }>();
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'notfound'>('loading');
+  const [liking, setLiking] = useState(false);
+  const [justMatched, setJustMatched] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+
+  const fetchProfile = useCallback(async () => {
+    if (!userId) return;
+    setStatus('loading');
+    try {
+      const res = await apiClient.get<UserProfile>(`/api/users/${userId}`);
+      setProfile(res.data);
+      setJustMatched(false);
+      setStatus('idle');
+    } catch (err) {
+      if (isAxiosError(err)) {
+        if (err.response?.status === 404) {
+          setStatus('notfound');
+          return;
+        }
+        if (err.response?.status === 409 && err.response.data?.redirect) {
+          navigate(err.response.data.redirect, { replace: true });
+          return;
+        }
+      }
+      setStatus('error');
+    }
+  }, [userId, navigate]);
+
+  useEffect(() => {
+    if (userId) fetchProfile();
+  }, [userId, fetchProfile]);
+
+  const handleLike = async () => {
+    if (!profile || liking || profile.relation.alreadyLiked) return;
+    setLiking(true);
+    try {
+      const res = await apiClient.post<{ matched: boolean; matchId: number | null }>(
+        `/api/discover/like/${profile.id}`
+      );
+      setProfile(p => p && ({
+        ...p,
+        relation: {
+          ...p.relation,
+          alreadyLiked: true,
+          matched: res.data.matched || p.relation.matched,
+          matchId: res.data.matchId ?? p.relation.matchId,
+        },
+      }));
+      if (res.data.matched) setJustMatched(true);
+    } catch (err) {
+      console.error('Failed to like user:', err);
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const handleMessage = () => {
+    if (!profile?.relation.matched || !profile.relation.matchId) return;
+    navigate(`/messages?matchId=${profile.relation.matchId}`);
+  };
+
+  /* ΓöÇΓöÇΓöÇ Route to own-profile page if no userId param ΓöÇΓöÇΓöÇ */
+  if (!userId) return <OwnProfilePage />;
+
+  if (status === 'loading')  return <LoadingState />;
+  if (status === 'notfound') return <NotFoundState />;
+  if (status === 'error' || !profile) return <ErrorState onRetry={fetchProfile} />;
+
+  /* ΓöÇΓöÇΓöÇ Derived view-model ΓöÇΓöÇΓöÇ */
+
+  const blocked = profile.relation.blockedByMe;
+  const likeLabel = justMatched ? "It's a match!" : profile.relation.alreadyLiked ? 'Liked' : 'Like';
+  const canMessage = profile.relation.matched && profile.relation.matchId !== null;
+
+  return (
+    <TooltipProvider delayDuration={150}>
+      <div className="min-h-screen bg-gradient-to-br from-[#2E1065] via-[#581C87] to-[#1e1b4b] text-white font-sans overflow-x-hidden">
+        <Navbar />
+
+        <div className="max-w-5xl mx-auto px-4 md:px-6 pt-28 pb-24">
+
+          {/* Back link */}
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-1.5 text-sm text-white/50 hover:text-white transition-colors mb-6 group"
+          >
+            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            Back
+          </button>
+
+          {/* ΓöÇΓöÇ Top split: gallery + profile summary ΓöÇΓöÇ */}
+          <div className="grid lg:grid-cols-5 gap-8 mb-8">
+
+            {/* Photo gallery */}
+            <div className="lg:col-span-2">
+              <PhotoGallery photos={profile.photos} name={profile.name} />
+            </div>
+
+            {/* Profile summary */}
+            <div className="lg:col-span-3 flex flex-col gap-6">
+
+              <ProfileHeader
+                name={profile.name}
+                age={profile.age}
+                city={profile.city}
+                country={profile.country}
+                isOnline={profile.isOnline}
+                sports={profile.sports}
+                primaryFrequency={profile.primaryFrequency}
+                goal={profile.goal}
+              />
+
+              {/* Compatibility */}
+              <Card>
+                <SectionTitle>Compatibility with you</SectionTitle>
+                <div className="space-y-5">
+                  <CompatRow
+                    label="Shared Sports"
+                    metric={profile.compatibility.sharedSports}
+                  />
+                  <CompatRow
+                    label="Training Frequency"
+                    metric={profile.compatibility.trainingFrequency}
+                  />
+                  <CompatRow
+                    label="Goal Alignment"
+                    metric={profile.compatibility.goalAlignment}
+                    hint={
+                      'Based on your relationship goals. Same goal scores highest; ' +
+                      'compatible goals (e.g. Casual + Friendship) are partial; ' +
+                      'opposing goals score lowest.'
+                    }
+                  />
+                </div>
+              </Card>
+
+              {/* Action buttons */}
+              <div className="flex flex-col gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={handleLike}
+                    disabled={liking || profile.relation.alreadyLiked || blocked}
+                    className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl disabled:hover:scale-100 disabled:cursor-default
+                      ${blocked
+                        ? 'bg-white/5 border border-white/10 text-white/30 cursor-not-allowed shadow-transparent'
+                        : profile.relation.alreadyLiked
+                          ? 'bg-rose-500 shadow-rose-500/30'
+                          : 'bg-gradient-to-br from-pink-500 to-rose-500 shadow-rose-500/25 hover:from-pink-400 hover:to-rose-400'
+                      }`}
+                  >
+                    <Heart className={`w-5 h-5 transition-all ${profile.relation.alreadyLiked && !blocked ? 'fill-current scale-110' : ''}`} />
+                    {likeLabel}
+                  </button>
+
+                  <button
+                    onClick={handleMessage}
+                    disabled={!canMessage || blocked}
+                    title={blocked ? 'Unblock to message' : canMessage ? 'Open conversation' : 'Match first to message'}
+                    className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-all shadow-xl
+                      ${canMessage && !blocked
+                        ? 'bg-gradient-to-br from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 hover:scale-[1.02] active:scale-[0.98] shadow-purple-600/25'
+                        : 'bg-white/5 border border-white/10 text-white/40 cursor-not-allowed shadow-transparent'
+                      }`}
+                  >
+                    <MessageSquare className="w-5 h-5" />
+                    Message
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setBlockDialogOpen(true)}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                  >
+                    <Ban className="w-4 h-4" />
+                    {blocked ? 'Unblock' : 'Block'}
+                  </button>
+                  <button
+                    onClick={() => setReportOpen(true)}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-rose-400/70 hover:text-rose-400 bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/20 transition-colors"
+                  >
+                    <Flag className="w-4 h-4" />
+                    Report
+                  </button>
                 </div>
               </div>
 
-              {/* Sport quick-tags */}
-              <div className="flex flex-wrap gap-2 mt-4">
-                {ATHLETE.sports.map(s => (
-                  <span
-                    key={s.name}
-                    className="flex items-center gap-1.5 bg-white/10 border border-white/15 text-sm font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm"
-                  >
-                    {s.icon} {s.name}
-                  </span>
-                ))}
-                <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
-                  🗓 {ATHLETE.frequency}
-                </span>
-              </div>
-            </div>
+              {/* Report & Block dialogs */}
+              <ReportModal
+                open={reportOpen}
+                onClose={() => setReportOpen(false)}
+                userId={profile.id}
+                userName={profile.name}
+              />
+              <BlockDialog
+                open={blockDialogOpen}
+                onClose={() => setBlockDialogOpen(false)}
+                userId={profile.id}
+                userName={profile.name}
+                isBlocked={blocked}
+                onToggled={(nowBlocked) => {
+                  setProfile(p => p && ({
+                    ...p,
+                    relation: { ...p.relation, blockedByMe: nowBlocked },
+                  }));
+                }}
+              />
 
-            {/* Compatibility */}
-            <Card>
-              <SectionTitle>Compatibility with you</SectionTitle>
-              <div className="space-y-5">
-                {ATHLETE.compatibility.map(c => (
-                  <div key={c.label}>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-sm font-medium text-white/80">{c.label}</span>
-                      <span className="text-xs font-semibold text-white/50">{c.detail}</span>
-                    </div>
-                    <CompatBar pct={c.pct} />
-                  </div>
-                ))}
+            </div>
+          </div>
+
+          {/* ΓöÇΓöÇ Detail cards ΓöÇΓöÇ */}
+          <div className="grid md:grid-cols-2 gap-6">
+
+            <SportsAndTrainingCards sports={profile.sports} />
+
+            {/* Bio */}
+            <Card className="md:col-span-2">
+              <SectionTitle>About {profile.name}</SectionTitle>
+              <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">
+                {profile.bio || 'No bio yet.'}
+              </p>
+            </Card>
+
+            {/* Goal */}
+            <Card className="md:col-span-2">
+              <SectionTitle>Looking for</SectionTitle>
+              <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl px-4 py-4">
+                <div className="w-10 h-10 bg-purple-500/20 border border-purple-400/20 rounded-xl flex items-center justify-center shrink-0">
+                  <Target className="w-5 h-5 text-purple-300" />
+                </div>
+                <span className="font-semibold text-white">
+                  {profile.goal || 'Not specified'}
+                </span>
               </div>
             </Card>
 
-            {/* Action buttons */}
-            <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => setLiked(l => !l)}
-                  className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl
-                    ${liked
-                      ? 'bg-rose-500 shadow-rose-500/30'
-                      : 'bg-gradient-to-br from-pink-500 to-rose-500 shadow-rose-500/25 hover:from-pink-400 hover:to-rose-400'
-                    }`}
-                >
-                  <Heart className={`w-5 h-5 transition-all ${liked ? 'fill-current scale-110' : ''}`} />
-                  {liked ? 'Liked!' : 'Like'}
-                </button>
-
-                <button
-                  onClick={() => navigate('/messages')}
-                  className="flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base bg-gradient-to-br from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-purple-600/25"
-                >
-                  <MessageSquare className="w-5 h-5" />
-                  Message
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
-                  <Ban className="w-4 h-4" />
-                  Block
-                </button>
-                <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-rose-400/70 hover:text-rose-400 bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/20 transition-colors">
-                  <Flag className="w-4 h-4" />
-                  Report
-                </button>
-              </div>
-            </div>
-
           </div>
         </div>
-
-        {/* ── Detail cards ── */}
-        <div className="grid md:grid-cols-2 gap-6">
-
-          {/* Sports & Training */}
-          <Card>
-            <SectionTitle>Sports & Training</SectionTitle>
-            <div className="space-y-3">
-              {ATHLETE.sports.map(sport => (
-                <div
-                  key={sport.name}
-                  className="flex items-center justify-between bg-white/5 border border-white/5 rounded-2xl px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{sport.icon}</span>
-                    <span className="font-semibold text-sm">{sport.name}</span>
-                  </div>
-                  <LevelBadge level={sport.level} />
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Training Stats */}
-          <Card>
-            <SectionTitle>Training Stats</SectionTitle>
-            <div className="grid grid-cols-2 gap-3">
-              {ATHLETE.stats.map(({ label, value, Icon }) => (
-                <div
-                  key={label}
-                  className="bg-white/5 border border-white/5 rounded-2xl px-4 py-3 flex flex-col gap-1"
-                >
-                  <div className="flex items-center gap-1.5 text-white/40">
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
-                  </div>
-                  <span className="text-lg font-bold text-white">{value}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Bio */}
-          <Card className="md:col-span-2">
-            <SectionTitle>About Emma</SectionTitle>
-            <p className="text-white/80 text-sm leading-relaxed">{ATHLETE.bio}</p>
-          </Card>
-
-          {/* Goal */}
-          <Card className="md:col-span-2">
-            <SectionTitle>Looking for</SectionTitle>
-            <div className="flex items-center gap-3 bg-white/5 border border-white/5 rounded-2xl px-4 py-4">
-              <div className="w-10 h-10 bg-purple-500/20 border border-purple-400/20 rounded-xl flex items-center justify-center shrink-0">
-                <Target className="w-5 h-5 text-purple-300" />
-              </div>
-              <span className="font-semibold text-white">{ATHLETE.goal}</span>
-            </div>
-          </Card>
-
-        </div>
       </div>
+    </TooltipProvider>
+  );
+}
+
+/* ΓöÇΓöÇΓöÇ Compatibility row (with optional hint tooltip) ΓöÇΓöÇΓöÇ */
+
+function CompatRow({
+  label, metric, hint,
+}: {
+  label:  string;
+  metric: CompatMetric;
+  hint?:  string;
+}) {
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="flex items-center gap-1 text-sm font-medium text-white/80">
+          {label}
+          {hint && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={`How ${label} is calculated`}
+                  className="inline-flex items-center text-white/40 hover:text-white/80 transition-colors"
+                >
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-left leading-snug">
+                {hint}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </span>
+        <span className="text-xs font-semibold text-white/50">{metric.detail}</span>
+      </div>
+      <CompatBar pct={metric.pct} />
     </div>
   );
 }
