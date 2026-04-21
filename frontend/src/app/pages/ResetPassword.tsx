@@ -3,7 +3,12 @@ import { useForm } from 'react-hook-form';
 import { motion } from 'motion/react';
 import { Link, useSearchParams } from 'react-router';
 import { Lock, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
-import isStrongPassword from 'validator/lib/isStrongPassword';
+const isStrongPassword = (pw: string, opts: { minLength: number; minLowercase: number; minUppercase: number; minNumbers: number; minSymbols: number }) =>
+  pw.length >= opts.minLength &&
+  (opts.minLowercase === 0 || /[a-z]/.test(pw)) &&
+  (opts.minUppercase === 0 || /[A-Z]/.test(pw)) &&
+  (opts.minNumbers === 0 || /[0-9]/.test(pw)) &&
+  (opts.minSymbols === 0 || /[^a-zA-Z0-9]/.test(pw));
 import { Navbar } from '../components/Navbar';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import api from '@/app/lib/api';

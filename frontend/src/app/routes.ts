@@ -13,6 +13,7 @@ import { SettingsPassword } from "./pages/SettingsPassword";
 import { BlockedUsers } from "./pages/BlockedUsers";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
+import { SuspendedAccount } from "./pages/SuspendedAccount";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
@@ -47,6 +48,10 @@ export const router = createBrowserRouter([
   {
     path: "/reset-password",
     Component: ResetPassword,
+  },
+  {
+    path: "/account-suspended",
+    Component: SuspendedAccount,
   },
   {
     path: "/design-system",

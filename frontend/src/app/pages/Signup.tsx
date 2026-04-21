@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { Eye, EyeOff } from 'lucide-react';
-import isEmail from 'validator/lib/isEmail';
+const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 import { Navbar } from '../components/Navbar';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import api from '@/app/lib/api';

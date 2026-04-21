@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Loader2, Shield } from "lucide-react";
-import isStrongPassword from "validator/lib/isStrongPassword";
+const isStrongPassword = (pw: string, opts: { minLength: number; minLowercase: number; minUppercase: number; minNumbers: number; minSymbols: number }) =>
+  pw.length >= opts.minLength &&
+  (opts.minLowercase === 0 || /[a-z]/.test(pw)) &&
+  (opts.minUppercase === 0 || /[A-Z]/.test(pw)) &&
+  (opts.minNumbers === 0 || /[0-9]/.test(pw)) &&
+  (opts.minSymbols === 0 || /[^a-zA-Z0-9]/.test(pw));
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import api, { isAxiosError } from "../lib/api";

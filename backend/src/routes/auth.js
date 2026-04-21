@@ -11,6 +11,31 @@ const router = express.Router();
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
+async function normalizeUserAccessState(user) {
+  if (user.account_status !== 'suspended' || !user.suspended_until) {
+    return user;
+  }
+
+  const suspendedUntil = new Date(user.suspended_until);
+  if (Number.isNaN(suspendedUntil.getTime()) || suspendedUntil.getTime() > Date.now()) {
+    return user;
+  }
+
+  await db.execute(
+    `UPDATE users
+     SET account_status = 'active', suspended_until = NULL, suspension_reason = NULL
+     WHERE user_id = ?`,
+    [user.user_id]
+  );
+
+  return {
+    ...user,
+    account_status: 'active',
+    suspended_until: null,
+    suspension_reason: null,
+  };
+}
+
 // Presence heartbeat (auth middleware updates last_active)
 router.get('/presence/ping', auth, async (_req, res) => {
   res.json({ ok: true });
@@ -27,12 +52,30 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const user = users[0];
+    let user = users[0];
 
     // Check password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    user = await normalizeUserAccessState(user);
+
+    if (user.account_status === 'banned') {
+      return res.status(403).json({
+        reason: 'banned',
+        error: 'This account has been permanently disabled for violating our terms.',
+      });
+    }
+
+    if (user.account_status === 'suspended') {
+      return res.status(403).json({
+        reason: 'suspended',
+        error: 'This account is temporarily suspended.',
+        until: user.suspended_until,
+        suspensionReason: user.suspension_reason || 'Your account is temporarily unavailable while we review a moderation action.',
+      });
     }
 
     // Generate JWT
