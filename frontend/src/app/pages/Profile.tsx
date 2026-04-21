@@ -12,6 +12,8 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '../components/ui/tooltip';
 import apiClient, { isAxiosError } from '../lib/api';
+import { ReportModal } from '../components/ReportModal';
+import { BlockDialog } from '../components/BlockDialog';
 
 /* ─── Own-profile type (no compatibility / relation) ─── */
 
@@ -492,6 +494,8 @@ export function Profile() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'notfound'>('loading');
   const [liking, setLiking] = useState(false);
   const [justMatched, setJustMatched] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!userId) return;
@@ -558,6 +562,7 @@ export function Profile() {
 
   /* ─── Derived view-model ─── */
 
+  const blocked = profile.relation.blockedByMe;
   const likeLabel = justMatched ? "It's a match!" : profile.relation.alreadyLiked ? 'Liked' : 'Like';
   const canMessage = profile.relation.matched && profile.relation.matchId !== null;
 
@@ -628,23 +633,25 @@ export function Profile() {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={handleLike}
-                    disabled={liking || profile.relation.alreadyLiked}
+                    disabled={liking || profile.relation.alreadyLiked || blocked}
                     className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl disabled:hover:scale-100 disabled:cursor-default
-                      ${profile.relation.alreadyLiked
-                        ? 'bg-rose-500 shadow-rose-500/30'
-                        : 'bg-gradient-to-br from-pink-500 to-rose-500 shadow-rose-500/25 hover:from-pink-400 hover:to-rose-400'
+                      ${blocked
+                        ? 'bg-white/5 border border-white/10 text-white/30 cursor-not-allowed shadow-transparent'
+                        : profile.relation.alreadyLiked
+                          ? 'bg-rose-500 shadow-rose-500/30'
+                          : 'bg-gradient-to-br from-pink-500 to-rose-500 shadow-rose-500/25 hover:from-pink-400 hover:to-rose-400'
                       }`}
                   >
-                    <Heart className={`w-5 h-5 transition-all ${profile.relation.alreadyLiked ? 'fill-current scale-110' : ''}`} />
+                    <Heart className={`w-5 h-5 transition-all ${profile.relation.alreadyLiked && !blocked ? 'fill-current scale-110' : ''}`} />
                     {likeLabel}
                   </button>
 
                   <button
                     onClick={handleMessage}
-                    disabled={!canMessage}
-                    title={canMessage ? 'Open conversation' : 'Match first to message'}
+                    disabled={!canMessage || blocked}
+                    title={blocked ? 'Unblock to message' : canMessage ? 'Open conversation' : 'Match first to message'}
                     className={`flex items-center justify-center gap-2 py-4 rounded-2xl font-bold text-base transition-all shadow-xl
-                      ${canMessage
+                      ${canMessage && !blocked
                         ? 'bg-gradient-to-br from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 hover:scale-[1.02] active:scale-[0.98] shadow-purple-600/25'
                         : 'bg-white/5 border border-white/10 text-white/40 cursor-not-allowed shadow-transparent'
                       }`}
@@ -655,16 +662,43 @@ export function Profile() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
+                  <button
+                    onClick={() => setBlockDialogOpen(true)}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
+                  >
                     <Ban className="w-4 h-4" />
-                    Block
+                    {blocked ? 'Unblock' : 'Block'}
                   </button>
-                  <button className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-rose-400/70 hover:text-rose-400 bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/20 transition-colors">
+                  <button
+                    onClick={() => setReportOpen(true)}
+                    className="flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-rose-400/70 hover:text-rose-400 bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/20 transition-colors"
+                  >
                     <Flag className="w-4 h-4" />
                     Report
                   </button>
                 </div>
               </div>
+
+              {/* Report & Block dialogs */}
+              <ReportModal
+                open={reportOpen}
+                onClose={() => setReportOpen(false)}
+                userId={profile.id}
+                userName={profile.name}
+              />
+              <BlockDialog
+                open={blockDialogOpen}
+                onClose={() => setBlockDialogOpen(false)}
+                userId={profile.id}
+                userName={profile.name}
+                isBlocked={blocked}
+                onToggled={(nowBlocked) => {
+                  setProfile(p => p && ({
+                    ...p,
+                    relation: { ...p.relation, blockedByMe: nowBlocked },
+                  }));
+                }}
+              />
 
             </div>
           </div>
