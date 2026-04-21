@@ -11,6 +11,8 @@ CREATE TABLE users (
     password_hash       VARCHAR(255)    NOT NULL,
     role                ENUM('user', 'admin')                   NOT NULL DEFAULT 'user',
     account_status      ENUM('active', 'suspended', 'banned')   NOT NULL DEFAULT 'active',
+    suspended_until     TIMESTAMP       NULL,
+    suspension_reason   TEXT            NULL,
     onboarding_complete BOOLEAN         NOT NULL DEFAULT FALSE,
     last_active         TIMESTAMP       NULL,
     created_at          TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,

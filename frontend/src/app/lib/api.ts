@@ -15,6 +15,27 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
+    if (error.response?.status === 403) {
+      const data = error.response?.data;
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+
+      if (data?.reason === 'suspended') {
+        sessionStorage.setItem('suspension_notice', JSON.stringify({
+          reason: data?.suspensionReason,
+          until: data?.until ?? null,
+        }));
+        window.location.href = '/account-suspended';
+      }
+
+      if (data?.reason === 'banned') {
+        sessionStorage.setItem('auth_notice', data?.error || 'This account has been permanently disabled for violating our terms.');
+        window.location.href = '/login';
+      }
+    }
+
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
