@@ -8,7 +8,14 @@ import { useAuth } from '@/app/context/AuthContext';
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => {
+    const notice = sessionStorage.getItem('auth_notice');
+    if (notice) {
+      sessionStorage.removeItem('auth_notice');
+      return notice;
+    }
+    return '';
+  });
   const [loading, setLoading] = useState(false);
   const { isAuthenticated, isAdmin, user, login } = useAuth();
   const navigate = useNavigate();
@@ -28,13 +35,24 @@ export function Login() {
     try {
       const response = await api.post('/api/auth/login', { email, password });
       const { token, user: loggedIn } = response.data;
+      sessionStorage.removeItem('suspension_notice');
       login(token, loggedIn);
       const dest = loggedIn.role === 'admin'
         ? '/admin/home'
         : loggedIn.onboardingComplete ? '/discover' : '/onboarding/profile';
       navigate(dest, { replace: true });
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Login failed');
+      const data = err.response?.data;
+      if (err.response?.status === 403 && data?.reason === 'suspended') {
+        sessionStorage.setItem('suspension_notice', JSON.stringify({
+          reason: data?.suspensionReason,
+          until: data?.until ?? null,
+        }));
+        navigate('/account-suspended', { replace: true });
+        return;
+      }
+
+      setError(data?.error || 'Login failed');
     } finally {
       setLoading(false);
     }

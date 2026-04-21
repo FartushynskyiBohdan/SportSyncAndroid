@@ -1,35 +1,9 @@
 const express = require('express');
 const db      = require('../config/database');
 const auth    = require('../middleware/auth');
+const { iconForSport } = require('../lib/sportIcons');
 
 const router = express.Router();
-
-/* ─── Sport emoji map (mirrors discover.js) ─── */
-
-const SPORT_ICONS = {
-  Football:        '⚽',
-  Basketball:      '🏀',
-  Rugby:           '🏉',
-  Volleyball:      '🏐',
-  Hockey:          '🏒',
-  Boxing:          '🥊',
-  MMA:             '🥋',
-  CrossFit:        '🏋️',
-  Swimming:        '🏊',
-  Surfing:         '🏄',
-  Rowing:          '🚣',
-  Running:         '🏃',
-  'Trail Running': '🥾',
-  Cycling:         '🚴',
-  Triathlon:       '🏅',
-  Skiing:          '⛷️',
-  Tennis:          '🎾',
-  Golf:            '⛳',
-  Gymnastics:      '🤸',
-  Yoga:            '🧘',
-  'Rock Climbing': '🧗',
-  Hiking:          '🥾',
-};
 
 // Online window: a user is "online" if last_active is within 5 minutes
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
@@ -142,7 +116,7 @@ router.get('/matches', auth, async (req, res) => {
           lastActive:   profile.last_active, // ISO timestamp; client formats for display
           isOnline:     lastActiveMs !== null && (now - lastActiveMs) < ONLINE_WINDOW_MS,
           sport: sportName
-            ? { icon: SPORT_ICONS[sportName] || '🏅', name: sportName }
+            ? { icon: iconForSport(sportName), name: sportName }
             : null,
           image:        photoByUser[m.other_user_id] || '',
           sharedSports: sharedByUser[m.other_user_id] || 0,

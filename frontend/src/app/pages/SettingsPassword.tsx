@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { Loader2, Shield } from "lucide-react";
+const isStrongPassword = (pw: string, opts: { minLength: number; minLowercase: number; minUppercase: number; minNumbers: number; minSymbols: number }) =>
+  pw.length >= opts.minLength &&
+  (opts.minLowercase === 0 || /[a-z]/.test(pw)) &&
+  (opts.minUppercase === 0 || /[A-Z]/.test(pw)) &&
+  (opts.minNumbers === 0 || /[0-9]/.test(pw)) &&
+  (opts.minSymbols === 0 || /[^a-zA-Z0-9]/.test(pw));
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import api, { isAxiosError } from "../lib/api";
+import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 import { SettingsPanel, SettingsShell } from "../components/settings/SettingsShell";
 
 export function SettingsPassword() {
@@ -28,8 +35,8 @@ export function SettingsPassword() {
       return;
     }
 
-    if (passwordForm.new_password.length < 8) {
-      setPasswordError("New password must be at least 8 characters.");
+    if (!isStrongPassword(passwordForm.new_password, { minLength: 8, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 0 })) {
+      setPasswordError("New password must be 8+ characters with uppercase, lowercase, and a number.");
       return;
     }
 
@@ -96,6 +103,7 @@ export function SettingsPassword() {
               }
               className="h-11 rounded-2xl border-white/15 bg-white/10 text-white"
             />
+            <PasswordStrengthBar password={passwordForm.new_password} />
           </div>
           <div>
             <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-white/70">
