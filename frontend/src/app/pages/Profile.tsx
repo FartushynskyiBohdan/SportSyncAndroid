@@ -267,9 +267,9 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 /* ─── Shared profile-content sub-components ─── */
 
-function ProfileHeader({ name, age, city, country, isOnline, sports, primaryFrequency }: {
+function ProfileHeader({ name, age, city, country, isOnline, sports, primaryFrequency, goal }: {
   name: string; age: number; city: string; country: string; isOnline: boolean;
-  sports: OwnUserSport[]; primaryFrequency: string | null;
+  sports: OwnUserSport[]; primaryFrequency: string | null; goal: string | null;
 }) {
   const locationLabel = country ? `${city}, ${country}` : city;
   return (
@@ -302,6 +302,11 @@ function ProfileHeader({ name, age, city, country, isOnline, sports, primaryFreq
           {primaryFrequency && (
             <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
               🗓 {primaryFrequency}
+            </span>
+          )}
+          {goal && (
+            <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
+              🎯 {goal}
             </span>
           )}
         </div>
@@ -460,6 +465,7 @@ function OwnProfilePage() {
               isOnline={profile.isOnline}
               sports={profile.sports}
               primaryFrequency={profile.primaryFrequency}
+              goal={profile.goal}
             />
             <AboutCard name={profile.name} bio={profile.bio} />
             <LookingForCard goal={profile.goal} />
@@ -590,6 +596,7 @@ export function Profile() {
                 isOnline={profile.isOnline}
                 sports={profile.sports}
                 primaryFrequency={profile.primaryFrequency}
+                goal={profile.goal}
               />
 
               {/* Compatibility */}
