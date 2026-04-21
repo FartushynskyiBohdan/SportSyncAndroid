@@ -568,6 +568,7 @@ function BioSection({ initialBio }: { initialBio: string | null }) {
 
   const charCount = bio.trim().length;
   const isValid   = charCount >= 20 && charCount <= 250;
+  const isDirty   = bio !== (initialBio ?? '');
 
   async function save() {
     if (!isValid) return;
@@ -626,7 +627,7 @@ function BioSection({ initialBio }: { initialBio: string | null }) {
       )}
 
       <div className="flex justify-end mt-4">
-        <SaveButton status={status} onClick={save} disabled={!isValid} />
+        <SaveButton status={status} onClick={save} disabled={!isValid || !isDirty} />
       </div>
     </Card>
   );
@@ -706,6 +707,20 @@ function SportsSection({
   }
 
   const validationError = validateSports(selectedSports, sportDetails);
+
+  const isDirty = (() => {
+    const initIds = initialSports.map(s => s.sport_id).sort((a, b) => a - b);
+    const currIds = [...selectedSports].sort((a, b) => a - b);
+    if (JSON.stringify(initIds) !== JSON.stringify(currIds)) return true;
+    for (const s of initialSports) {
+      const d = sportDetails[s.sport_id];
+      if (!d) return true;
+      if (d.skill_level_id   !== String(s.skill_level_id))        return true;
+      if (d.frequency_id     !== String(s.frequency_id))          return true;
+      if (d.years_experience !== String(s.years_experience ?? '')) return true;
+    }
+    return false;
+  })();
 
   async function save() {
     setTouched(true);
@@ -856,7 +871,7 @@ function SportsSection({
       </AnimatePresence>
 
       <div className="flex justify-end">
-        <SaveButton status={status} onClick={save} disabled={touched && !!validationError} />
+        <SaveButton status={status} onClick={save} disabled={!isDirty || (touched && !!validationError)} />
       </div>
     </Card>
   );
@@ -871,9 +886,11 @@ function GoalSection({
   initialGoalId: number | null;
   goals:         Goal[];
 }) {
-  const [goalId, setGoalId] = useState(initialGoalId ? String(initialGoalId) : '');
+  const initialGoalStr = initialGoalId ? String(initialGoalId) : '';
+  const [goalId, setGoalId] = useState(initialGoalStr);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [error,  setError]  = useState<string | null>(null);
+  const isDirty = goalId !== initialGoalStr;
 
   // Auto-reset 'saved'.
   useEffect(() => {
@@ -919,7 +936,7 @@ function GoalSection({
       )}
 
       <div className="flex justify-end mt-4">
-        <SaveButton status={status} onClick={save} disabled={!goalId} />
+        <SaveButton status={status} onClick={save} disabled={!goalId || !isDirty} />
       </div>
     </Card>
   );
