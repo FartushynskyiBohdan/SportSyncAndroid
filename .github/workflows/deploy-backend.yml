@@ -19,11 +19,12 @@ jobs:
           script: |
             set -e
             cd ~/SportSync-Dating-for-Athletes
-            git stash --include-untracked || true
-            git pull
+            
+            git fetch origin
+            git reset --hard origin/main
+
             cd backend
             npm install --production
-            sudo systemctl stop sportsync
-            sleep 2
-            sudo systemctl start sportsync
+
+            sudo systemctl restart sportsync
 
