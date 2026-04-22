@@ -1,125 +1,90 @@
-import { useState, useRef, useEffect } from 'react';
-import { Search, Send, ChevronLeft, MoreVertical, CheckCheck } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { Search, Send, ChevronLeft, MoreVertical, CheckCheck, Loader2 } from 'lucide-react';
+import { useSearchParams } from 'react-router';
 import { Navbar } from '../components/Navbar';
+import apiClient from '../lib/api';
+import { useAuth } from '../context/AuthContext';
+
+const POLL_INTERVAL_MS = 15000;
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 type Message = {
   id: number;
+  senderId: number;
   text: string;
-  sender: 'me' | 'them';
-  time: string;
-  read: boolean;
+  sentAt: string;
+  readAt: string | null;
 };
 
 type Conversation = {
-  id: number;
+  matchId: number;
+  matchedAt: string;
+  user: {
+    id: number;
+    name: string;
+    age: number;
+    city: string;
+    image: string;
+    isOnline: boolean;
+    lastActive: string | null;
+  };
+  lastMessage: string | null;
+  lastMessageSentAt: string | null;
+  lastMessageSenderId: number | null;
+  unreadCount: number;
+};
+
+type ConversationThread = {
+  matchId: number;
+  peer: {
+    user_id: number;
+    first_name: string;
+    age: number;
+    city_name: string;
+    last_active: string | null;
+    photo_url: string | null;
+  } | null;
+  messages: Message[];
+};
+
+type RenderConversation = {
+  matchId: number;
   name: string;
   age: number;
-  sport: string;
-  sportIcon: string;
+  city: string;
   isOnline: boolean;
   lastMessage: string;
   timestamp: string;
   unread: number;
   image: string;
-  messages: Message[];
 };
 
-const INITIAL_CONVERSATIONS: Conversation[] = [
-  {
-    id: 1,
-    name: 'Emma',
-    age: 26,
-    sport: 'Runner',
-    sportIcon: '🏃',
-    isOnline: true,
-    lastMessage: "Want to run tomorrow morning?",
-    timestamp: '10:45 AM',
-    unread: 2,
-    image: 'https://images.unsplash.com/photo-1771513699065-0f0f696341b8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    messages: [
-      { id: 1, text: "Hey! I saw you also do marathon training 🏃", sender: 'them', time: '10:30 AM', read: true },
-      { id: 2, text: "Yes! I'm training for the city marathon next spring", sender: 'me', time: '10:32 AM', read: true },
-      { id: 3, text: "That's amazing! What's your current weekly mileage?", sender: 'them', time: '10:35 AM', read: true },
-      { id: 4, text: "Around 60km. Trying to build up to 80 before the race", sender: 'me', time: '10:37 AM', read: true },
-      { id: 5, text: "Impressive! I'm at 70km right now. We should train together sometime 💪", sender: 'them', time: '10:40 AM', read: true },
-      { id: 6, text: "Want to run tomorrow morning?", sender: 'them', time: '10:45 AM', read: false },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Alex',
-    age: 28,
-    sport: 'CrossFit',
-    sportIcon: '🏋️',
-    isOnline: false,
-    lastMessage: "That PR was insane, congrats!",
-    timestamp: 'Yesterday',
-    unread: 0,
-    image: 'https://images.unsplash.com/photo-1752778597829-9e92e6d8b42f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    messages: [
-      { id: 1, text: "Saw your post about the 200kg deadlift 🔥", sender: 'them', time: 'Yesterday 3:10 PM', read: true },
-      { id: 2, text: "Thanks! Took months but finally got there", sender: 'me', time: 'Yesterday 3:14 PM', read: true },
-      { id: 3, text: "That PR was insane, congrats!", sender: 'them', time: 'Yesterday 3:15 PM', read: true },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Sarah',
-    age: 24,
-    sport: 'Swimming',
-    sportIcon: '🏊‍♀️',
-    isOnline: false,
-    lastMessage: "The pool opens at 6, I'll be there",
-    timestamp: 'Mon',
-    unread: 0,
-    image: 'https://images.unsplash.com/photo-1472521882609-05fb39814d60?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    messages: [
-      { id: 1, text: "Do you go to the university pool?", sender: 'me', time: 'Mon 9:00 AM', read: true },
-      { id: 2, text: "Yes! Almost every morning", sender: 'them', time: 'Mon 9:15 AM', read: true },
-      { id: 3, text: "Nice, maybe we could swim together sometime", sender: 'me', time: 'Mon 9:20 AM', read: true },
-      { id: 4, text: "The pool opens at 6, I'll be there", sender: 'them', time: 'Mon 9:45 AM', read: true },
-    ],
-  },
-  {
-    id: 4,
-    name: 'Jordan',
-    age: 30,
-    sport: 'Cycling',
-    sportIcon: '🚴',
-    isOnline: false,
-    lastMessage: "You: Sounds like a plan!",
-    timestamp: 'Sun',
-    unread: 0,
-    image: 'https://images.unsplash.com/photo-1534787238916-9ba6764efd4f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    messages: [
-      { id: 1, text: "I'm planning a 100km ride this weekend, want to join?", sender: 'them', time: 'Sun 2:00 PM', read: true },
-      { id: 2, text: "Sounds like a plan!", sender: 'me', time: 'Sun 2:10 PM', read: true },
-    ],
-  },
-  {
-    id: 5,
-    name: 'Mia',
-    age: 25,
-    sport: 'Yoga',
-    sportIcon: '🧘‍♀️',
-    isOnline: false,
-    lastMessage: "You: That sounds wonderful!",
-    timestamp: 'Fri',
-    unread: 0,
-    image: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=200',
-    messages: [
-      { id: 1, text: "I do a sunrise yoga session every Saturday at the park", sender: 'them', time: 'Fri 7:00 PM', read: true },
-      { id: 2, text: "That sounds wonderful!", sender: 'me', time: 'Fri 7:05 PM', read: true },
-    ],
-  },
-];
+function formatConversationTime(timestamp: string | null): string {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  if (sameDay) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday';
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+function formatMessageTime(timestamp: string): string {
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 
 function ConversationItem({
   conv,
   isActive,
   onClick,
 }: {
-  conv: Conversation;
+  conv: RenderConversation;
   isActive: boolean;
   onClick: () => void;
 }) {
@@ -162,39 +127,187 @@ function ConversationItem({
 }
 
 export function Messages() {
-  const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS);
-  const [activeId, setActiveId] = useState(1);
+  const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [pageError, setPageError] = useState('');
+  const [activeMatchId, setActiveMatchId] = useState<number | null>(null);
+  const [thread, setThread] = useState<ConversationThread | null>(null);
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const active = conversations.find(c => c.id === activeId)!;
-  const filtered = conversations.filter(c =>
+  const renderedConversations = useMemo<RenderConversation[]>(() => {
+    return conversations.map((conversation) => {
+      const previewText = conversation.lastMessage
+        ? (conversation.lastMessageSenderId === user?.id
+          ? `You: ${conversation.lastMessage}`
+          : conversation.lastMessage)
+        : 'You matched. Say hello!';
+
+      const timestamp = formatConversationTime(
+        conversation.lastMessageSentAt || conversation.matchedAt
+      );
+
+      const onlineFromLastActive = conversation.user.lastActive
+        ? (Date.now() - new Date(conversation.user.lastActive).getTime()) < ONLINE_WINDOW_MS
+        : false;
+
+      return {
+        matchId: conversation.matchId,
+        name: conversation.user.name,
+        age: conversation.user.age,
+        city: conversation.user.city,
+        isOnline: conversation.user.isOnline || onlineFromLastActive,
+        lastMessage: previewText,
+        timestamp,
+        unread: conversation.unreadCount,
+        image: conversation.user.image,
+      };
+    });
+  }, [conversations, user?.id]);
+
+  const activeConversation = renderedConversations.find((c) => c.matchId === activeMatchId) || null;
+
+  const filtered = renderedConversations.filter((c) =>
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const syncConversations = useCallback((loaded: Conversation[], preserveSelection: boolean) => {
+    setConversations(loaded);
+
+    if (loaded.length === 0) {
+      setActiveMatchId(null);
+      setThread(null);
+      return;
+    }
+
+    const requestedMatchId = Number(searchParams.get('matchId'));
+    const hasRequested = Number.isInteger(requestedMatchId) && requestedMatchId > 0;
+    const requestedExists = hasRequested && loaded.some((c) => c.matchId === requestedMatchId);
+
+    setActiveMatchId((previous) => {
+      if (preserveSelection && previous && loaded.some((c) => c.matchId === previous)) {
+        return previous;
+      }
+      if (requestedExists) {
+        return requestedMatchId;
+      }
+      return loaded[0].matchId;
+    });
+  }, [searchParams]);
+
+  const loadConversations = useCallback(async (preserveSelection = false) => {
+    if (!preserveSelection) {
+      setLoadingConversations(true);
+      setPageError('');
+    }
+    try {
+      const response = await apiClient.get<Conversation[]>('/api/messages/conversations');
+      syncConversations(response.data, preserveSelection);
+    } catch {
+      if (!preserveSelection) {
+        setPageError('Failed to load conversations.');
+      }
+    } finally {
+      if (!preserveSelection) {
+        setLoadingConversations(false);
+      }
+    }
+  }, [syncConversations]);
+
+  const loadThread = useCallback(async (matchId: number, background = false) => {
+    if (!background) {
+      setLoadingMessages(true);
+      setPageError('');
+    }
+    try {
+      const response = await apiClient.get<ConversationThread>(`/api/messages/${matchId}`);
+      setThread(response.data);
+      setConversations((prev) => prev.map((c) => (
+        c.matchId === matchId ? { ...c, unreadCount: 0 } : c
+      )));
+    } catch {
+      if (!background) {
+        setPageError('Failed to load messages.');
+      }
+    } finally {
+      if (!background) {
+        setLoadingMessages(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [active?.messages.length]);
+  }, [thread?.messages.length]);
 
-  const selectConversation = (id: number) => {
-    setActiveId(id);
+  useEffect(() => {
+    loadConversations(false);
+  }, [loadConversations]);
+
+  useEffect(() => {
+    if (!activeMatchId) return;
+    loadThread(activeMatchId, false);
+  }, [activeMatchId, loadThread]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      loadConversations(true);
+      if (activeMatchId) {
+        loadThread(activeMatchId, true);
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [activeMatchId, loadConversations, loadThread]);
+
+  const selectConversation = (matchId: number) => {
+    setActiveMatchId(matchId);
     setMobileView('chat');
-    setConversations(prev => prev.map(c => c.id === id ? { ...c, unread: 0 } : c));
   };
 
-  const sendMessage = (text?: string) => {
+  const sendMessage = async (text?: string) => {
+    if (!activeMatchId) return;
     const content = (text ?? inputText).trim();
     if (!content) return;
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const newMsg: Message = { id: Date.now(), text: content, sender: 'me', time, read: false };
-    setConversations(prev => prev.map(c =>
-      c.id === activeId
-        ? { ...c, messages: [...c.messages, newMsg], lastMessage: `You: ${content}`, timestamp: 'Just now' }
-        : c
-    ));
-    if (!text) setInputText('');
+
+    try {
+      const response = await apiClient.post<Message>(`/api/messages/${activeMatchId}`, {
+        text: content,
+      });
+
+      const newMessage = response.data;
+      setThread((prev) => {
+        if (!prev || prev.matchId !== activeMatchId) {
+          return prev;
+        }
+        return {
+          ...prev,
+          messages: [...prev.messages, newMessage],
+        };
+      });
+
+      setConversations((prev) => prev.map((conversation) => (
+        conversation.matchId === activeMatchId
+          ? {
+              ...conversation,
+              lastMessage: newMessage.text,
+              lastMessageSentAt: newMessage.sentAt,
+              lastMessageSenderId: newMessage.senderId,
+            }
+          : conversation
+      )));
+
+      if (!text) {
+        setInputText('');
+      }
+    } catch {
+      setPageError('Failed to send message. Please try again.');
+    }
   };
 
   return (
@@ -225,18 +338,29 @@ export function Messages() {
 
           {/* Conversation list */}
           <div className="flex-1 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <p className="p-6 text-center text-white/40 text-sm">No conversations found.</p>
-            ) : (
+            {loadingConversations ? (
+              <div className="h-full flex items-center justify-center text-white/50 text-sm gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading conversations...
+              </div>
+            ) : null}
+
+            {!loadingConversations && filtered.length === 0 ? (
+              <p className="p-6 text-center text-white/40 text-sm">
+                {conversations.length === 0 ? 'No matches yet. Go to Matches to start chatting.' : 'No conversations found.'}
+              </p>
+            ) : null}
+
+            {!loadingConversations && filtered.length > 0 ? (
               filtered.map(conv => (
                 <ConversationItem
-                  key={conv.id}
+                  key={conv.matchId}
                   conv={conv}
-                  isActive={conv.id === activeId}
-                  onClick={() => selectConversation(conv.id)}
+                  isActive={conv.matchId === activeMatchId}
+                  onClick={() => selectConversation(conv.matchId)}
                 />
               ))
-            )}
+            ) : null}
           </div>
         </aside>
 
@@ -245,6 +369,12 @@ export function Messages() {
           className={`flex-1 flex flex-col overflow-hidden
             ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}
         >
+          {!activeConversation || !thread ? (
+            <div className="flex-1 flex items-center justify-center text-white/50 px-8 text-center">
+              {loadingConversations ? 'Loading...' : 'Select a conversation from your matches to start messaging.'}
+            </div>
+          ) : (
+          <>
           {/* Chat header */}
           <div className="flex items-center gap-3 px-5 py-4 border-b border-white/10 bg-black/10 backdrop-blur-sm shrink-0">
             <button
@@ -257,24 +387,24 @@ export function Messages() {
 
             <div className="relative shrink-0">
               <img
-                src={active.image}
-                alt={active.name}
+                src={activeConversation.image}
+                alt={activeConversation.name}
                 className="w-11 h-11 rounded-full object-cover border-2 border-white/20"
               />
-              {active.isOnline && (
+              {activeConversation.isOnline && (
                 <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-[#2E1065]" />
               )}
             </div>
 
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-base leading-tight">
-                {active.name}, {active.age}
+                {activeConversation.name}, {activeConversation.age}
               </h3>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-white/60">{active.sportIcon} {active.sport}</span>
+                <span className="text-white/60">{activeConversation.city}</span>
                 <span className="text-white/30">·</span>
-                <span className={active.isOnline ? 'text-green-400' : 'text-white/40'}>
-                  {active.isOnline ? 'Active now' : 'Offline'}
+                <span className={activeConversation.isOnline ? 'text-green-400' : 'text-white/40'}>
+                  {activeConversation.isOnline ? 'Active now' : 'Offline'}
                 </span>
               </div>
             </div>
@@ -286,11 +416,24 @@ export function Messages() {
 
           {/* Messages area */}
           <div className="flex-1 overflow-y-auto px-5 py-6 space-y-3">
-            {active.messages.map((msg, i) => {
-              const isMe = msg.sender === 'me';
-              const isLast = i === active.messages.length - 1;
-              const prevSender = i > 0 ? active.messages[i - 1].sender : null;
-              const showAvatar = !isMe && prevSender !== 'them';
+            {loadingMessages ? (
+              <div className="h-full flex items-center justify-center text-white/50 text-sm gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading messages...
+              </div>
+            ) : null}
+
+            {!loadingMessages && thread.messages.length === 0 ? (
+              <div className="h-full flex items-center justify-center text-white/50 text-sm text-center px-8">
+                You matched. Send the first message.
+              </div>
+            ) : null}
+
+            {!loadingMessages && thread.messages.map((msg, i) => {
+              const isMe = msg.senderId === user?.id;
+              const isLast = i === thread.messages.length - 1;
+              const prevSender = i > 0 ? thread.messages[i - 1].senderId : null;
+              const showAvatar = !isMe && prevSender !== msg.senderId;
 
               return (
                 <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
@@ -299,8 +442,8 @@ export function Messages() {
                     <div className="w-8 shrink-0">
                       {showAvatar && (
                         <img
-                          src={active.image}
-                          alt={active.name}
+                          src={activeConversation.image}
+                          alt={activeConversation.name}
                           className="w-8 h-8 rounded-full object-cover border border-white/20"
                         />
                       )}
@@ -318,7 +461,7 @@ export function Messages() {
                       {msg.text}
                     </div>
                     <div className="flex items-center gap-1 px-1">
-                      <span className="text-[11px] text-white/30">{msg.time}</span>
+                      <span className="text-[11px] text-white/30">{formatMessageTime(msg.sentAt)}</span>
                       {isMe && isLast && (
                         <CheckCheck className="w-3.5 h-3.5 text-purple-400" />
                       )}
@@ -332,10 +475,11 @@ export function Messages() {
 
           {/* Input area */}
           <div className="px-5 py-4 border-t border-white/10 bg-black/10 backdrop-blur-sm shrink-0">
+            {pageError ? <p className="mb-3 text-xs text-rose-300">{pageError}</p> : null}
             <div className="flex items-center gap-3">
               <input
                 type="text"
-                placeholder={`Message ${active.name}...`}
+                placeholder={`Message ${activeConversation.name}...`}
                 value={inputText}
                 onChange={e => setInputText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }}}
@@ -343,7 +487,7 @@ export function Messages() {
               />
               <button
                 onClick={() => sendMessage()}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() || loadingMessages}
                 className="w-11 h-11 bg-gradient-to-br from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 rounded-2xl flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed shadow-lg shadow-purple-600/30 shrink-0"
                 aria-label="Send message"
               >
@@ -351,6 +495,8 @@ export function Messages() {
               </button>
             </div>
           </div>
+          </>
+          )}
         </main>
       </div>
     </div>

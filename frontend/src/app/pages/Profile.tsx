@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import {
   Heart, MessageSquare, Flag, Ban,
@@ -15,7 +15,7 @@ import apiClient, { isAxiosError } from '../lib/api';
 import { ReportModal } from '../components/ReportModal';
 import { BlockDialog } from '../components/BlockDialog';
 
-/* ΓöÇΓöÇΓöÇ Own-profile type (no compatibility / relation) ΓöÇΓöÇΓöÇ */
+/* ─── Own-profile type (no compatibility / relation) ─── */
 
 type OwnUserSport = {
   icon:            string;
@@ -40,7 +40,7 @@ type OwnUserProfile = {
   sports:           OwnUserSport[];
 };
 
-/* ΓöÇΓöÇΓöÇ API types (mirror GET /api/users/:id) ΓöÇΓöÇΓöÇ */
+/* ─── API types (mirror GET /api/users/:id) ─── */
 
 type CompatMetric = { pct: number; detail: string };
 
@@ -84,7 +84,7 @@ type UserProfile = {
   relation:         Relation;
 };
 
-/* ΓöÇΓöÇΓöÇ Small reusable bits ΓöÇΓöÇΓöÇ */
+/* ─── Small reusable bits ─── */
 
 function LevelBadge({ level }: { level: string }) {
   const map: Record<string, string> = {
@@ -129,7 +129,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* ΓöÇΓöÇΓöÇ Photo Gallery ΓöÇΓöÇΓöÇ */
+/* ─── Photo Gallery ─── */
 
 function PhotoGallery({ photos, name }: { photos: string[]; name: string }) {
   const [idx, setIdx] = useState(0);
@@ -204,7 +204,7 @@ function PhotoGallery({ photos, name }: { photos: string[]; name: string }) {
   );
 }
 
-/* ΓöÇΓöÇΓöÇ States: loading / error / 404 ΓöÇΓöÇΓöÇ */
+/* ─── States: loading / error / 404 ─── */
 
 function FullPageState({ children }: { children: React.ReactNode }) {
   return (
@@ -221,7 +221,7 @@ function LoadingState() {
   return (
     <FullPageState>
       <Loader2 className="w-10 h-10 text-purple-400 animate-spin mb-4" />
-      <p className="text-white/50 text-sm">Loading profileΓÇª</p>
+      <p className="text-white/50 text-sm">Loading profile…</p>
     </FullPageState>
   );
 }
@@ -267,7 +267,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/* ΓöÇΓöÇΓöÇ Shared profile-content sub-components ΓöÇΓöÇΓöÇ */
+/* ─── Shared profile-content sub-components ─── */
 
 function ProfileHeader({ name, age, city, country, isOnline, sports, primaryFrequency, goal }: {
   name: string; age: number; city: string; country: string; isOnline: boolean;
@@ -303,12 +303,12 @@ function ProfileHeader({ name, age, city, country, isOnline, sports, primaryFreq
           ))}
           {primaryFrequency && (
             <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
-              ≡ƒùô {primaryFrequency}
+              🗓 {primaryFrequency}
             </span>
           )}
           {goal && (
             <span className="flex items-center gap-1.5 bg-white/5 border border-white/10 text-xs text-white/60 px-3 py-1.5 rounded-full">
-              ≡ƒÄ» {goal}
+              🎯 {goal}
             </span>
           )}
         </div>
@@ -405,7 +405,7 @@ function SportsAndTrainingCards({ sports }: { sports: OwnUserSport[] }) {
   );
 }
 
-/* ΓöÇΓöÇΓöÇ Own-profile page ΓöÇΓöÇΓöÇ */
+/* ─── Own-profile page ─── */
 
 function OwnProfilePage() {
   const navigate = useNavigate();
@@ -451,7 +451,7 @@ function OwnProfilePage() {
           </button>
         </div>
 
-        {/* ΓöÇΓöÇ Top split: gallery + summary ΓöÇΓöÇ */}
+        {/* ── Top split: gallery + summary ── */}
         <div className="grid lg:grid-cols-5 gap-8 mb-8">
 
           <div className="lg:col-span-2">
@@ -474,7 +474,7 @@ function OwnProfilePage() {
           </div>
         </div>
 
-        {/* ΓöÇΓöÇ Detail cards ΓöÇΓöÇ */}
+        {/* ── Detail cards ── */}
         <div className="grid md:grid-cols-2 gap-6">
           <SportsAndTrainingCards sports={profile.sports} />
         </div>
@@ -484,7 +484,7 @@ function OwnProfilePage() {
   );
 }
 
-/* ΓöÇΓöÇΓöÇ Main Page ΓöÇΓöÇΓöÇ */
+/* ─── Main Page ─── */
 
 export function Profile() {
   const navigate = useNavigate();
@@ -553,14 +553,14 @@ export function Profile() {
     navigate(`/messages?matchId=${profile.relation.matchId}`);
   };
 
-  /* ΓöÇΓöÇΓöÇ Route to own-profile page if no userId param ΓöÇΓöÇΓöÇ */
+  /* ─── Route to own-profile page if no userId param ─── */
   if (!userId) return <OwnProfilePage />;
 
   if (status === 'loading')  return <LoadingState />;
   if (status === 'notfound') return <NotFoundState />;
   if (status === 'error' || !profile) return <ErrorState onRetry={fetchProfile} />;
 
-  /* ΓöÇΓöÇΓöÇ Derived view-model ΓöÇΓöÇΓöÇ */
+  /* ─── Derived view-model ─── */
 
   const blocked = profile.relation.blockedByMe;
   const likeLabel = justMatched ? "It's a match!" : profile.relation.alreadyLiked ? 'Liked' : 'Like';
@@ -582,7 +582,7 @@ export function Profile() {
             Back
           </button>
 
-          {/* ΓöÇΓöÇ Top split: gallery + profile summary ΓöÇΓöÇ */}
+          {/* ── Top split: gallery + profile summary ── */}
           <div className="grid lg:grid-cols-5 gap-8 mb-8">
 
             {/* Photo gallery */}
@@ -703,7 +703,7 @@ export function Profile() {
             </div>
           </div>
 
-          {/* ΓöÇΓöÇ Detail cards ΓöÇΓöÇ */}
+          {/* ── Detail cards ── */}
           <div className="grid md:grid-cols-2 gap-6">
 
             <SportsAndTrainingCards sports={profile.sports} />
@@ -736,7 +736,7 @@ export function Profile() {
   );
 }
 
-/* ΓöÇΓöÇΓöÇ Compatibility row (with optional hint tooltip) ΓöÇΓöÇΓöÇ */
+/* ─── Compatibility row (with optional hint tooltip) ─── */
 
 function CompatRow({
   label, metric, hint,

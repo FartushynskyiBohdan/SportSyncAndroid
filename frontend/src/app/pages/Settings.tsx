@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Loader2,
   Lock,
@@ -11,7 +11,7 @@ import api, { isAxiosError } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { SettingsPanel, SettingsShell } from "../components/settings/SettingsShell";
 
-const isEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+import isEmail from 'validator/lib/isEmail';
 
 interface Gender {
   id: number;

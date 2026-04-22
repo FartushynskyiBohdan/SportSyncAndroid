@@ -13,6 +13,8 @@ const SORT_OPTIONS = [
   { value: 'newest_match',    label: 'Newest Match'    },
   { value: 'shared_sports',   label: 'Shared Sports'   },
 ] as const;
+const MATCHES_POLL_INTERVAL_MS = 15_000;
+const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 type SortValue = typeof SORT_OPTIONS[number]['value'];
 
@@ -70,6 +72,16 @@ function sortMatches(matches: Match[], sort: SortValue): Match[] {
     default:
       return copy;
   }
+}
+
+function withComputedOnline(match: Match): Match {
+  const onlineFromLastActive = match.lastActive
+    ? (Date.now() - new Date(match.lastActive).getTime()) < ONLINE_WINDOW_MS
+    : false;
+  return {
+    ...match,
+    isOnline: match.isOnline || onlineFromLastActive,
+  };
 }
 
 /* ─── Match card ─── */
@@ -131,7 +143,7 @@ function MatchCard({ match }: { match: Match }) {
             Message
           </button>
           <button
-            onClick={() => navigate(`/profile/${match.userId}`)}
+            onClick={() => navigate(`/profile/${match.userId}?matchId=${match.matchId}`)}
             className="w-full flex items-center justify-center gap-2 bg-white/15 backdrop-blur-md border border-white/25 text-white font-semibold py-3 rounded-2xl hover:bg-white/25 transition-colors"
           >
             <User className="w-4 h-4" />
@@ -157,7 +169,7 @@ export function Matches() {
     setError(null);
     try {
       const res = await apiClient.get<Match[]>('/api/matches');
-      setMatches(res.data);
+      setMatches(res.data.map(withComputedOnline));
     } catch {
       setError('Failed to load matches.');
     } finally {
@@ -167,6 +179,16 @@ export function Matches() {
 
   useEffect(() => {
     fetchMatches();
+  }, [fetchMatches]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      fetchMatches();
+    }, MATCHES_POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(interval);
+    };
   }, [fetchMatches]);
 
   const sorted = sortMatches(matches, sort);

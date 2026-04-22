@@ -1,14 +1,9 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'motion/react';
 import { Link, useSearchParams } from 'react-router';
 import { Lock, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
-const isStrongPassword = (pw: string, opts: { minLength: number; minLowercase: number; minUppercase: number; minNumbers: number; minSymbols: number }) =>
-  pw.length >= opts.minLength &&
-  (opts.minLowercase === 0 || /[a-z]/.test(pw)) &&
-  (opts.minUppercase === 0 || /[A-Z]/.test(pw)) &&
-  (opts.minNumbers === 0 || /[0-9]/.test(pw)) &&
-  (opts.minSymbols === 0 || /[^a-zA-Z0-9]/.test(pw));
+import isStrongPassword from 'validator/lib/isStrongPassword';
 import { Navbar } from '../components/Navbar';
 import { PasswordStrengthBar } from '../components/PasswordStrengthBar';
 import api from '@/app/lib/api';
@@ -94,7 +89,7 @@ export function ResetPassword() {
           className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 md:p-10 rounded-3xl shadow-2xl shadow-purple-950/50"
         >
           {isSuccess ? (
-            /* ΓöÇΓöÇ Success State ΓöÇΓöÇ */
+            /* ── Success State ── */
             <div className="text-center">
               <div className="mx-auto w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center justify-center mb-6">
                 <CheckCircle className="w-8 h-8 text-emerald-400" />
@@ -111,7 +106,7 @@ export function ResetPassword() {
               </Link>
             </div>
           ) : (
-            /* ΓöÇΓöÇ Form State ΓöÇΓöÇ */
+            /* ── Form State ── */
             <>
               {/* Back link */}
               <Link
@@ -159,7 +154,7 @@ export function ResetPassword() {
                     <input
                       type={showPassword ? 'text' : 'password'}
                       id="password"
-                      placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó"
+                      placeholder="••••••••"
                       className={`w-full bg-white/10 border rounded-xl px-4 py-3 pl-11 pr-11 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all ${
                         errors.password ? 'border-rose-500/50' : 'border-white/20'
                       }`}
@@ -195,7 +190,7 @@ export function ResetPassword() {
                     <input
                       type={showConfirm ? 'text' : 'password'}
                       id="confirmPassword"
-                      placeholder="ΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇóΓÇó"
+                      placeholder="••••••••"
                       className={`w-full bg-white/10 border rounded-xl px-4 py-3 pl-11 pr-11 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:bg-white/15 transition-all ${
                         errors.confirmPassword ? 'border-rose-500/50' : 'border-white/20'
                       }`}
