@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+﻿import { createBrowserRouter } from "react-router";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
@@ -13,6 +13,7 @@ import { SettingsPassword } from "./pages/SettingsPassword";
 import { BlockedUsers } from "./pages/BlockedUsers";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
+import { SuspendedAccount } from "./pages/SuspendedAccount";
 import { DesignSystem } from "./pages/DesignSystem";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
@@ -49,11 +50,15 @@ export const router = createBrowserRouter([
     Component: ResetPassword,
   },
   {
+    path: "/account-suspended",
+    Component: SuspendedAccount,
+  },
+  {
     path: "/design-system",
     Component: DesignSystem,
   },
 
-  // Auth required — onboarding pages
+  // Auth required ΓÇö onboarding pages
   {
     Component: ProtectedRoute,
     children: [
@@ -66,7 +71,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Auth + onboarding complete required — main app pages
+  // Auth + onboarding complete required ΓÇö main app pages
   {
     Component: AppRoute,
     children: [
