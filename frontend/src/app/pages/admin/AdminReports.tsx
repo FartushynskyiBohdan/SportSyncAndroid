@@ -297,6 +297,7 @@ export function AdminReports() {
                 const isExpanded = expandedReportId === report.id;
                 const isBusy = !!savingIds[report.id];
                 const isSavingStatus = !!savingStatusIds[report.id];
+                const isClosed = report.status === 'Resolved' || report.status === 'Dismissed';
 
                 return (
                   <Fragment key={report.id}>
@@ -309,8 +310,8 @@ export function AdminReports() {
                         <select
                           value={selectedStatuses[report.id] || report.status}
                           onChange={(e) => void handleStatusChange(report.id, e.target.value)}
-                          disabled={isSavingStatus}
-                          className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-1.5 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 disabled:cursor-wait disabled:opacity-60"
+                          disabled={isSavingStatus || isClosed}
+                          className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-1.5 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {reportStatusOptions.map((option) => (
                             <option key={option} value={option} className="bg-slate-900 text-white">
@@ -418,61 +419,63 @@ export function AdminReports() {
                                   )}
                                 </div>
 
-                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
-                                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Moderation action</p>
-                                  <div className="mt-3 grid gap-3">
-                                    <select
-                                      value={selectedActions[report.id] || ''}
-                                      onChange={(e) => handleActionChange(report.id, e.target.value as (typeof moderationActionOptions)[number])}
-                                      className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                    >
-                                      <option value="" disabled>
-                                        Select action
-                                      </option>
-                                      {moderationActionOptions.map((option) => (
-                                        <option key={option} value={option} className="bg-slate-900 text-white capitalize">
-                                          {option}
+                                {!isClosed ? (
+                                  <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Moderation action</p>
+                                    <div className="mt-3 grid gap-3">
+                                      <select
+                                        value={selectedActions[report.id] || ''}
+                                        onChange={(e) => handleActionChange(report.id, e.target.value as (typeof moderationActionOptions)[number])}
+                                        className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                      >
+                                        <option value="" disabled>
+                                          Select action
                                         </option>
-                                      ))}
-                                    </select>
+                                        {moderationActionOptions.map((option) => (
+                                          <option key={option} value={option} className="bg-slate-900 text-white capitalize">
+                                            {option}
+                                          </option>
+                                        ))}
+                                      </select>
 
-                                    <textarea
-                                      value={internalNotes[report.id] || ''}
-                                      onChange={(e) => handleNoteChange(report.id, e.target.value)}
-                                      maxLength={1000}
-                                      rows={3}
-                                      placeholder="Internal note for moderation log..."
-                                      className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                    />
+                                      <textarea
+                                        value={internalNotes[report.id] || ''}
+                                        onChange={(e) => handleNoteChange(report.id, e.target.value)}
+                                        maxLength={1000}
+                                        rows={3}
+                                        placeholder="Internal note for moderation log..."
+                                        className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                      />
 
-                                    {selectedActions[report.id] === 'suspend' ? (
-                                      <>
-                                        <textarea
-                                          value={suspensionReasons[report.id] || ''}
-                                          onChange={(e) => setSuspensionReasons((current) => ({ ...current, [report.id]: e.target.value }))}
-                                          maxLength={500}
-                                          rows={3}
-                                          placeholder="Suspension reason shown to the user..."
-                                          className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                        />
-                                        <input
-                                          type="datetime-local"
-                                          value={suspensionUntilValues[report.id] || ''}
-                                          onChange={(e) => setSuspensionUntilValues((current) => ({ ...current, [report.id]: e.target.value }))}
-                                          className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                        />
-                                      </>
-                                    ) : null}
+                                      {selectedActions[report.id] === 'suspend' ? (
+                                        <>
+                                          <textarea
+                                            value={suspensionReasons[report.id] || ''}
+                                            onChange={(e) => setSuspensionReasons((current) => ({ ...current, [report.id]: e.target.value }))}
+                                            maxLength={500}
+                                            rows={3}
+                                            placeholder="Suspension reason shown to the user..."
+                                            className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                          />
+                                          <input
+                                            type="datetime-local"
+                                            value={suspensionUntilValues[report.id] || ''}
+                                            onChange={(e) => setSuspensionUntilValues((current) => ({ ...current, [report.id]: e.target.value }))}
+                                            className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                          />
+                                        </>
+                                      ) : null}
 
-                                    <button
-                                      onClick={() => void handleApplyModeration(report.id)}
-                                      disabled={isBusy}
-                                      className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                      {isBusy ? 'Applying...' : 'Apply action'}
-                                    </button>
+                                      <button
+                                        onClick={() => void handleApplyModeration(report.id)}
+                                        disabled={isBusy}
+                                        className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {isBusy ? 'Applying...' : 'Apply action'}
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
+                                ) : null}
                               </div>
                             </div>
                           ) : (
