@@ -96,6 +96,7 @@ export function AdminReports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedStatuses, setSelectedStatuses] = useState<Record<number, string>>({});
+  const [savingStatusIds, setSavingStatusIds] = useState<Record<number, boolean>>({});
   const [contexts, setContexts] = useState<Record<number, ReportContext>>({});
   const [expandedReportId, setExpandedReportId] = useState<number | null>(null);
   const [loadingContextId, setLoadingContextId] = useState<number | null>(null);
@@ -128,8 +129,23 @@ export function AdminReports() {
     fetchReports();
   }, []);
 
-  const handleStatusChange = (id: number, status: string) => {
+  const handleStatusChange = async (id: number, status: string) => {
+    const statusId = reportStatusToId[status];
+    if (!statusId) return;
+
     setSelectedStatuses((current) => ({ ...current, [id]: status }));
+    setSavingStatusIds((current) => ({ ...current, [id]: true }));
+
+    try {
+      await apiClient.patch(`/api/admin/reports/${id}/status`, { statusId });
+      setReports((current) =>
+        current.map((report) => (report.id === id ? { ...report, status } : report))
+      );
+    } catch {
+      setError('Could not update report status.');
+    } finally {
+      setSavingStatusIds((current) => ({ ...current, [id]: false }));
+    }
   };
 
   const handleActionChange = (id: number, action: (typeof moderationActionOptions)[number]) => {
@@ -177,27 +193,6 @@ export function AdminReports() {
     setExpandedReportId(nextExpanded);
     if (nextExpanded !== null) {
       await loadReportContext(nextExpanded);
-    }
-  };
-
-  const handleUpdateStatus = async (id: number) => {
-    const nextStatus = selectedStatuses[id];
-    const statusId = reportStatusToId[nextStatus];
-
-    if (!statusId) {
-      setError('Please choose a valid report status.');
-      return;
-    }
-
-    try {
-      await apiClient.patch(`/api/admin/reports/${id}/status`, { statusId });
-      setReports((current) =>
-        current.map((report) =>
-          report.id === id ? { ...report, status: nextStatus } : report
-        )
-      );
-    } catch (err) {
-      setError('Could not update report status.');
     }
   };
 
@@ -286,14 +281,13 @@ export function AdminReports() {
           <table className="min-w-full text-left divide-y divide-white/10">
             <thead className="bg-slate-950/80 text-slate-400">
               <tr>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Report ID</th>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Reporter</th>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Reported</th>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Type</th>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Description</th>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Status</th>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Account</th>
-                <th className="px-6 py-4 text-sm font-semibold uppercase tracking-[0.18em]">Action</th>
+                <th className="px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Report ID</th>
+                <th className="px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Reporter</th>
+                <th className="px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Reported</th>
+                <th className="px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Type</th>
+                <th className="px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Status</th>
+                <th className="px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Account</th>
+                <th className="px-5 py-3 text-sm font-semibold uppercase tracking-[0.18em]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/10">
@@ -301,20 +295,21 @@ export function AdminReports() {
                 const context = contexts[report.id];
                 const isExpanded = expandedReportId === report.id;
                 const isBusy = !!savingIds[report.id];
+                const isSavingStatus = !!savingStatusIds[report.id];
 
                 return (
                   <Fragment key={report.id}>
                     <tr className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 text-sm text-slate-200">#{report.id}</td>
-                      <td className="px-6 py-4 text-sm text-slate-200">{report.reporter_email}</td>
-                      <td className="px-6 py-4 text-sm text-slate-200">{report.reported_email}</td>
-                      <td className="px-6 py-4 text-sm text-slate-200">{report.type}</td>
-                      <td className="px-6 py-4 text-sm text-slate-200 max-w-xl truncate">{report.description || 'No description'}</td>
-                      <td className="px-6 py-4 text-sm text-slate-200">
+                      <td className="px-5 py-3 text-sm text-slate-200">#{report.id}</td>
+                      <td className="px-5 py-3 text-sm text-slate-200">{report.reporter_email}</td>
+                      <td className="px-5 py-3 text-sm text-slate-200">{report.reported_email}</td>
+                      <td className="px-5 py-3 text-sm text-slate-200">{report.type}</td>
+                      <td className="px-5 py-3 text-sm text-slate-200">
                         <select
                           value={selectedStatuses[report.id] || report.status}
-                          onChange={(e) => handleStatusChange(report.id, e.target.value)}
-                          className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                          onChange={(e) => void handleStatusChange(report.id, e.target.value)}
+                          disabled={isSavingStatus}
+                          className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-1.5 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20 disabled:cursor-wait disabled:opacity-60"
                         >
                           {reportStatusOptions.map((option) => (
                             <option key={option} value={option} className="bg-slate-900 text-white">
@@ -323,33 +318,30 @@ export function AdminReports() {
                           ))}
                         </select>
                       </td>
-                      <td className="px-6 py-4 text-sm text-slate-200 capitalize">{report.reported_account_status}</td>
-                      <td className="px-6 py-4 text-sm">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleUpdateStatus(report.id)}
-                            className="rounded-full bg-purple-500 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-400 transition-colors"
-                          >
-                            Save status
-                          </button>
-                          <button
-                            onClick={() => void toggleExpanded(report.id)}
-                            className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10 transition-colors"
-                          >
-                            {isExpanded ? 'Hide review' : 'Open review'}
-                          </button>
-                        </div>
+                      <td className="px-5 py-3 text-sm text-slate-200 capitalize">{report.reported_account_status}</td>
+                      <td className="px-5 py-3 text-sm">
+                        <button
+                          onClick={() => void toggleExpanded(report.id)}
+                          className="rounded-full border border-white/20 px-4 py-1.5 text-sm font-semibold text-slate-200 hover:bg-white/10 transition-colors"
+                        >
+                          {isExpanded ? 'Hide review' : 'Open review'}
+                        </button>
                       </td>
                     </tr>
 
                     {isExpanded ? (
                       <tr>
-                        <td className="px-6 pb-6" colSpan={8}>
+                        <td className="px-6 pb-6" colSpan={7}>
                           {loadingContextId === report.id && !context ? (
                             <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-5 text-sm text-slate-300">Loading report context...</div>
                           ) : context ? (
                             <div className="grid gap-4 rounded-2xl border border-white/10 bg-slate-950/70 p-5 lg:grid-cols-2">
                               <div className="space-y-4">
+                                <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
+                                  <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Report description</p>
+                                  <p className="mt-2 text-sm text-slate-200">{report.description || <span className="text-slate-500 italic">No description provided.</span>}</p>
+                                </div>
+
                                 <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
                                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Reporter context</p>
                                   <p className="mt-2 text-sm text-white">{report.reporter_email}</p>
@@ -400,6 +392,7 @@ export function AdminReports() {
                                           <p className="text-slate-200">#{item.id} • {item.type} • {item.status}</p>
                                           <p className="text-slate-400">Reporter: {item.reporter_email}</p>
                                           <p className="text-slate-400">{formatDate(item.created_at)}</p>
+                                          {item.description ? <p className="mt-1 text-slate-300">{item.description}</p> : null}
                                         </div>
                                       ))}
                                     </div>
