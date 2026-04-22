@@ -226,8 +226,9 @@ export function AdminReports() {
       await fetchReports();
       await loadReportContext(id, true);
       setError('');
-    } catch {
-      setError('Could not apply moderation action.');
+    } catch (err: unknown) {
+      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(message || 'Could not apply moderation action.');
     } finally {
       setSavingIds((current) => ({ ...current, [id]: false }));
     }

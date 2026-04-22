@@ -295,7 +295,7 @@ router.post('/reports/:id/moderate', async (req, res) => {
     await connection.beginTransaction();
 
     const [reportRows] = await connection.execute(
-      `SELECT c.complaint_id, c.reported_id, u.account_status
+      `SELECT c.complaint_id, c.reported_id, c.status_id, u.account_status
        FROM complaints c
        JOIN users u ON u.user_id = c.reported_id
        WHERE c.complaint_id = ?
@@ -306,6 +306,11 @@ router.post('/reports/:id/moderate', async (req, res) => {
     if (reportRows.length === 0) {
       await connection.rollback();
       return res.status(404).json({ error: 'Report not found.' });
+    }
+
+    if ([3, 4].includes(reportRows[0].status_id)) {
+      await connection.rollback();
+      return res.status(409).json({ error: 'This report is already closed and cannot be moderated again.' });
     }
 
     const report = reportRows[0];
