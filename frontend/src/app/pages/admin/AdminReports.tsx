@@ -1,5 +1,15 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import apiClient from '../../lib/api';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../../components/ui/alert-dialog';
 
 interface ReportRow {
   id: number;
@@ -37,7 +47,6 @@ interface ReportContext {
   report: {
     id: number;
     internal_note: string | null;
-    admin_action: string | null;
   };
   reporterStats: {
     totalReports: number;
@@ -95,6 +104,7 @@ export function AdminReports() {
   const [suspensionReasons, setSuspensionReasons] = useState<Record<number, string>>({});
   const [suspensionUntilValues, setSuspensionUntilValues] = useState<Record<number, string>>({});
   const [savingIds, setSavingIds] = useState<Record<number, boolean>>({});
+  const [banConfirmId, setBanConfirmId] = useState<number | null>(null);
 
   const fetchReports = async () => {
     try {
@@ -198,6 +208,16 @@ export function AdminReports() {
       return;
     }
 
+    if (action === 'ban') {
+      setBanConfirmId(id);
+      return;
+    }
+
+    await applyModeration(id);
+  };
+
+  const applyModeration = async (id: number) => {
+    const action = selectedActions[id];
     try {
       setSavingIds((current) => ({ ...current, [id]: true }));
       await apiClient.post(`/api/admin/reports/${id}/moderate`, {
@@ -232,6 +252,30 @@ export function AdminReports() {
           <p className="max-w-2xl text-slate-400 mt-3">Inspect incoming complaints, review reported users, and resolve issues responsibly.</p>
         </div>
       </div>
+
+      <AlertDialog open={banConfirmId !== null} onOpenChange={(open) => { if (!open) setBanConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently ban this user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately and permanently disable the account. The user will not be able to log in. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-500 text-white"
+              onClick={() => {
+                const id = banConfirmId!;
+                setBanConfirmId(null);
+                void applyModeration(id);
+              }}
+            >
+              Yes, ban user
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {loading ? (
         <div className="rounded-3xl border border-white/10 bg-slate-900/80 p-10 text-center text-slate-300">Loading reports...</div>
@@ -382,9 +426,6 @@ export function AdminReports() {
 
                                 <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
                                   <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Moderation action</p>
-                                  {context.report.admin_action ? (
-                                    <p className="mt-2 text-xs text-slate-300">Last action on this report: <span className="capitalize text-white">{context.report.admin_action}</span></p>
-                                  ) : null}
                                   <div className="mt-3 grid gap-3">
                                     <select
                                       value={selectedActions[report.id] || ''}

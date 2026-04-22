@@ -387,18 +387,41 @@ INSERT INTO complaint_statuses (status_name) VALUES
 -- Table 24: Complaints
 -- ------------------------------------------------------------
 CREATE TABLE complaints (
-    complaint_id INT       NOT NULL AUTO_INCREMENT,
-    reporter_id  INT       NOT NULL,
-    reported_id  INT       NOT NULL,
-    type_id      INT       NOT NULL,
-    description  TEXT      NULL,
-    status_id    INT       NOT NULL,
-    created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    complaint_id  INT       NOT NULL AUTO_INCREMENT,
+    reporter_id   INT       NOT NULL,
+    reported_id   INT       NOT NULL,
+    type_id       INT       NOT NULL,
+    description   TEXT      NULL,
+    status_id     INT       NOT NULL,
+    internal_note TEXT      NULL,
+    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (complaint_id),
     CONSTRAINT fk_complaints_reporter FOREIGN KEY (reporter_id) REFERENCES users              (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_complaints_reported FOREIGN KEY (reported_id) REFERENCES users              (user_id) ON DELETE CASCADE,
     CONSTRAINT fk_complaints_type     FOREIGN KEY (type_id)     REFERENCES complaint_types    (type_id),
     CONSTRAINT fk_complaints_status   FOREIGN KEY (status_id)   REFERENCES complaint_statuses (status_id)
+);
+
+-- ------------------------------------------------------------
+-- Table 25: Moderation Actions (admin audit trail)
+-- ------------------------------------------------------------
+CREATE TABLE moderation_actions (
+    action_id               INT  NOT NULL AUTO_INCREMENT,
+    complaint_id            INT  NOT NULL,
+    admin_id                INT  NOT NULL,
+    target_user_id          INT  NOT NULL,
+    action_type             ENUM('warn', 'suspend', 'ban', 'dismiss') NOT NULL,
+    previous_account_status ENUM('active', 'suspended', 'banned')     NOT NULL,
+    new_account_status      ENUM('active', 'suspended', 'banned')     NOT NULL,
+    note                    TEXT      NULL,
+    created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (action_id),
+    KEY idx_moderation_actions_target_user (target_user_id, created_at),
+    KEY idx_moderation_actions_complaint   (complaint_id),
+    CONSTRAINT fk_moderation_actions_complaint FOREIGN KEY (complaint_id)   REFERENCES complaints (complaint_id) ON DELETE CASCADE,
+    CONSTRAINT fk_moderation_actions_admin     FOREIGN KEY (admin_id)       REFERENCES users      (user_id)      ON DELETE CASCADE,
+    CONSTRAINT fk_moderation_actions_target    FOREIGN KEY (target_user_id) REFERENCES users      (user_id)      ON DELETE CASCADE
 );
 
 -- ------------------------------------------------------------

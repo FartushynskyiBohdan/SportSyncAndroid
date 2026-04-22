@@ -1,40 +1,16 @@
-﻿const express = require('express');
+const express = require('express');
 const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
+const { loadUserAccess } = require('../lib/userAccess');
 
 const router = express.Router();
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-
-async function normalizeUserAccessState(user) {
-  if (user.account_status !== 'suspended' || !user.suspended_until) {
-    return user;
-  }
-
-  const suspendedUntil = new Date(user.suspended_until);
-  if (Number.isNaN(suspendedUntil.getTime()) || suspendedUntil.getTime() > Date.now()) {
-    return user;
-  }
-
-  await db.execute(
-    `UPDATE users
-     SET account_status = 'active', suspended_until = NULL, suspension_reason = NULL
-     WHERE user_id = ?`,
-    [user.user_id]
-  );
-
-  return {
-    ...user,
-    account_status: 'active',
-    suspended_until: null,
-    suspension_reason: null,
-  };
-}
 
 // Presence heartbeat (auth middleware updates last_active)
 router.get('/presence/ping', auth, async (_req, res) => {
@@ -52,15 +28,17 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    let user = users[0];
+    const rawUser = users[0];
 
     // Check password
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    const isValidPassword = await bcrypt.compare(password, rawUser.password_hash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    user = await normalizeUserAccessState(user);
+    // Re-fetch via loadUserAccess so expired suspensions are lifted in one place.
+    const user = await loadUserAccess(rawUser.user_id);
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
     if (user.account_status === 'banned') {
       return res.status(403).json({
@@ -74,20 +52,22 @@ router.post('/login', async (req, res) => {
         reason: 'suspended',
         error: 'This account is temporarily suspended.',
         until: user.suspended_until,
-        suspensionReason: user.suspension_reason || 'Your account is temporarily unavailable while we review a moderation action.',
+        suspensionReason:
+          user.suspension_reason ||
+          'Your account is temporarily unavailable while we review a moderation action.',
       });
     }
 
-    // Generate JWT
-    const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    // Generate JWT (rawUser carries id/email/onboarding_complete; user carries role/status)
+    const token = jwt.sign({ userId: rawUser.user_id }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
     res.json({
       token,
       user: {
-        id: user.user_id,
-        email: user.email,
-        role: user.role,
-        onboardingComplete: !!user.onboarding_complete,
+        id:                rawUser.user_id,
+        email:             rawUser.email,
+        role:              user.role,
+        onboardingComplete: !!rawUser.onboarding_complete,
       },
     });
   } catch (error) {

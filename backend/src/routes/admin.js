@@ -137,7 +137,6 @@ router.get('/reports/:id/context', async (req, res) => {
         c.description,
         c.created_at,
         c.internal_note,
-        c.admin_action,
         t.type_name AS type,
         s.status_name AS status,
         reporter.email AS reporter_email,
@@ -340,9 +339,9 @@ router.post('/reports/:id/moderate', async (req, res) => {
 
     await connection.execute(
       `UPDATE complaints
-       SET status_id = ?, internal_note = ?, admin_action = ?
+       SET status_id = ?, internal_note = ?
        WHERE complaint_id = ?`,
-      [targetStatusId, note || null, action, complaintId]
+      [targetStatusId, note || null, complaintId]
     );
 
     await connection.execute(
