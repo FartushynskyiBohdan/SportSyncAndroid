@@ -116,7 +116,84 @@ router.get('/discover', auth, async (req, res) => {
 
     sql += ` ORDER BY u.last_active DESC LIMIT 50`;
 
-    const [profiles] = await db.execute(sql, params);
+    let [profiles] = await db.execute(sql, params);
+
+    // ── Progressive filter relaxation ────────────────────────────────────────
+    // If no results: retry without sports/skill/frequency filters (keep gender + age)
+    if (profiles.length === 0 && prefSportIds.length > 0) {
+      const relaxedParams = [
+        userId,
+        pref.gender_id,
+        pref.min_age,
+        pref.max_age,
+        userId, userId, userId, userId,
+      ];
+      const relaxedSql = `
+        SELECT
+          pr.user_id,
+          pr.first_name,
+          TIMESTAMPDIFF(YEAR, pr.birth_date, CURDATE()) AS age,
+          c.city_name,
+          pr.bio,
+          u.last_active,
+          u.created_at,
+          rg.goal_name
+        FROM profiles pr
+        JOIN users u ON u.user_id = pr.user_id
+        JOIN cities c ON c.city_id = pr.city_id
+        LEFT JOIN preferences prf ON prf.user_id = pr.user_id
+        LEFT JOIN relationship_goals rg ON rg.goal_id = prf.goal_id
+        WHERE pr.user_id != ?
+          AND u.account_status = 'active'
+          AND u.onboarding_complete = TRUE
+          AND pr.gender_id = ?
+          AND TIMESTAMPDIFF(YEAR, pr.birth_date, CURDATE()) BETWEEN ? AND ?
+          AND pr.user_id NOT IN (SELECT liked_id  FROM likes         WHERE liker_id   = ?)
+          AND pr.user_id NOT IN (SELECT passed_id FROM passes        WHERE passer_id  = ?)
+          AND pr.user_id NOT IN (SELECT blocked_id FROM blocked_users WHERE blocker_id = ?)
+          AND pr.user_id NOT IN (SELECT blocker_id FROM blocked_users WHERE blocked_id = ?)
+        ORDER BY u.last_active DESC LIMIT 50`;
+      [profiles] = await db.execute(relaxedSql, relaxedParams);
+    }
+
+    // If still no results: relax age range too (±10 years beyond preference)
+    if (profiles.length === 0) {
+      const wideMinAge = Math.max(18, (pref.min_age || 18) - 10);
+      const wideMaxAge = Math.min(80, (pref.max_age || 60) + 10);
+      const wideParams = [
+        userId,
+        pref.gender_id,
+        wideMinAge,
+        wideMaxAge,
+        userId, userId, userId, userId,
+      ];
+      const wideSql = `
+        SELECT
+          pr.user_id,
+          pr.first_name,
+          TIMESTAMPDIFF(YEAR, pr.birth_date, CURDATE()) AS age,
+          c.city_name,
+          pr.bio,
+          u.last_active,
+          u.created_at,
+          rg.goal_name
+        FROM profiles pr
+        JOIN users u ON u.user_id = pr.user_id
+        JOIN cities c ON c.city_id = pr.city_id
+        LEFT JOIN preferences prf ON prf.user_id = pr.user_id
+        LEFT JOIN relationship_goals rg ON rg.goal_id = prf.goal_id
+        WHERE pr.user_id != ?
+          AND u.account_status = 'active'
+          AND u.onboarding_complete = TRUE
+          AND pr.gender_id = ?
+          AND TIMESTAMPDIFF(YEAR, pr.birth_date, CURDATE()) BETWEEN ? AND ?
+          AND pr.user_id NOT IN (SELECT liked_id  FROM likes         WHERE liker_id   = ?)
+          AND pr.user_id NOT IN (SELECT passed_id FROM passes        WHERE passer_id  = ?)
+          AND pr.user_id NOT IN (SELECT blocked_id FROM blocked_users WHERE blocker_id = ?)
+          AND pr.user_id NOT IN (SELECT blocker_id FROM blocked_users WHERE blocked_id = ?)
+        ORDER BY u.last_active DESC LIMIT 50`;
+      [profiles] = await db.execute(wideSql, wideParams);
+    }
 
     if (profiles.length === 0) {
       return res.json([]);
