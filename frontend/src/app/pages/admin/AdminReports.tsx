@@ -105,7 +105,8 @@ export function AdminReports() {
   const [suspensionReasons, setSuspensionReasons] = useState<Record<number, string>>({});
   const [suspensionUntilValues, setSuspensionUntilValues] = useState<Record<number, string>>({});
   const [savingIds, setSavingIds] = useState<Record<number, boolean>>({});
-  const [banConfirmId, setBanConfirmId] = useState<number | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ id: number; action: (typeof moderationActionOptions)[number] } | null>(null);
+  const [pendingStatusClose, setPendingStatusClose] = useState<{ id: number; status: string } | null>(null);
 
   const fetchReports = async () => {
     try {
@@ -129,13 +130,20 @@ export function AdminReports() {
     fetchReports();
   }, []);
 
-  const handleStatusChange = async (id: number, status: string) => {
+  const handleStatusChange = (id: number, status: string) => {
+    if (!reportStatusToId[status]) return;
+    setSelectedStatuses((current) => ({ ...current, [id]: status }));
+    if (status === 'Resolved' || status === 'Dismissed') {
+      setPendingStatusClose({ id, status });
+      return;
+    }
+    void commitStatusChange(id, status);
+  };
+
+  const commitStatusChange = async (id: number, status: string) => {
     const statusId = reportStatusToId[status];
     if (!statusId) return;
-
-    setSelectedStatuses((current) => ({ ...current, [id]: status }));
     setSavingStatusIds((current) => ({ ...current, [id]: true }));
-
     try {
       await apiClient.patch(`/api/admin/reports/${id}/status`, { statusId });
       setReports((current) =>
@@ -196,19 +204,13 @@ export function AdminReports() {
     }
   };
 
-  const handleApplyModeration = async (id: number) => {
+  const handleApplyModeration = (id: number) => {
     const action = selectedActions[id];
     if (!action) {
       setError('Choose an action: Warn, Suspend, Ban, or Dismiss.');
       return;
     }
-
-    if (action === 'ban') {
-      setBanConfirmId(id);
-      return;
-    }
-
-    await applyModeration(id);
+    setPendingAction({ id, action });
   };
 
   const applyModeration = async (id: number) => {
@@ -249,25 +251,66 @@ export function AdminReports() {
         </div>
       </div>
 
-      <AlertDialog open={banConfirmId !== null} onOpenChange={(open) => { if (!open) setBanConfirmId(null); }}>
+      <AlertDialog open={pendingAction !== null} onOpenChange={(open) => { if (!open) setPendingAction(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Permanently ban this user?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {pendingAction?.action === 'ban' && 'Permanently ban this user?'}
+              {pendingAction?.action === 'suspend' && 'Suspend this user?'}
+              {pendingAction?.action === 'warn' && 'Send a warning to this user?'}
+              {pendingAction?.action === 'dismiss' && 'Dismiss this report?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This will immediately and permanently disable the account. The user will not be able to log in. This action cannot be undone.
+              {pendingAction?.action === 'ban' && 'This will immediately and permanently disable the account. The user will not be able to log in. This action cannot be undone.'}
+              {pendingAction?.action === 'suspend' && 'The user will be locked out until the suspension period ends.'}
+              {pendingAction?.action === 'warn' && 'A warning notification will be sent to the user. Their account status will not change.'}
+              {pendingAction?.action === 'dismiss' && 'The report will be closed with no action taken against the user.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-600 hover:bg-red-500 text-white"
+              className={pendingAction?.action === 'ban' ? 'bg-red-600 hover:bg-red-500 text-white' : ''}
               onClick={() => {
-                const id = banConfirmId!;
-                setBanConfirmId(null);
-                void applyModeration(id);
+                const pending = pendingAction!;
+                setPendingAction(null);
+                void applyModeration(pending.id);
               }}
             >
-              Yes, ban user
+              {pendingAction?.action === 'ban' && 'Yes, ban user'}
+              {pendingAction?.action === 'suspend' && 'Yes, suspend user'}
+              {pendingAction?.action === 'warn' && 'Yes, send warning'}
+              {pendingAction?.action === 'dismiss' && 'Yes, dismiss'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={pendingStatusClose !== null} onOpenChange={(open) => { if (!open) setPendingStatusClose(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark report as {pendingStatusClose?.status}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will close the report. Once {pendingStatusClose?.status?.toLowerCase()}, the status cannot be changed and no further moderation actions can be taken from this report.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              if (pendingStatusClose) {
+                setSelectedStatuses((current) => ({ ...current, [pendingStatusClose.id]: reports.find(r => r.id === pendingStatusClose.id)?.status ?? current[pendingStatusClose.id] }));
+              }
+              setPendingStatusClose(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const pending = pendingStatusClose!;
+                setPendingStatusClose(null);
+                void commitStatusChange(pending.id, pending.status);
+              }}
+            >
+              Yes, mark as {pendingStatusClose?.status?.toLowerCase()}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -367,18 +410,14 @@ export function AdminReports() {
                                   ) : null}
                                   <p className="text-sm text-slate-300">Account age: {accountAge(context.reportedUser.createdAt)}</p>
                                   <p className="mt-2 text-sm text-slate-300">{context.reportedUser.bio || 'No bio available.'}</p>
-                                  {context.reportedUser.photos.length > 0 ? (
-                                    <div className="mt-3 grid grid-cols-3 gap-2">
-                                      {context.reportedUser.photos.map((photo, idx) => (
-                                        <img
-                                          key={`${report.id}-photo-${idx}`}
-                                          src={photo}
-                                          alt={`Reported user ${idx + 1}`}
-                                          className="h-20 w-full rounded-xl object-cover"
-                                        />
-                                      ))}
-                                    </div>
-                                  ) : null}
+                                  <a
+                                    href={`/admin/users/${context.reportedUser.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-3 inline-flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300 underline underline-offset-2"
+                                  >
+                                    View full profile
+                                  </a>
                                 </div>
                               </div>
 
@@ -406,7 +445,7 @@ export function AdminReports() {
                                   {context.priorActions.length === 0 ? (
                                     <p className="mt-2 text-sm text-slate-300">No prior admin actions recorded.</p>
                                   ) : (
-                                    <div className="mt-3 max-h-44 space-y-2 overflow-y-auto pr-1">
+                                    <div className="mt-3 max-h-68 space-y-2 overflow-y-auto pr-1">
                                       {context.priorActions.map((item) => (
                                         <div key={item.action_id} className="rounded-xl border border-white/10 bg-slate-950/70 p-3 text-sm">
                                           <p className="text-slate-200 capitalize">{item.action_type} • {item.previous_account_status} -&gt; {item.new_account_status}</p>
@@ -423,52 +462,66 @@ export function AdminReports() {
                                   <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4">
                                     <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Moderation action</p>
                                     <div className="mt-3 grid gap-3">
-                                      <select
-                                        value={selectedActions[report.id] || ''}
-                                        onChange={(e) => handleActionChange(report.id, e.target.value as (typeof moderationActionOptions)[number])}
-                                        className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                      >
-                                        <option value="" disabled>
-                                          Select action
-                                        </option>
-                                        {moderationActionOptions.map((option) => (
-                                          <option key={option} value={option} className="bg-slate-900 text-white capitalize">
-                                            {option}
+                                      <div className="grid gap-1">
+                                        <label className="text-xs text-slate-400">Select action</label>
+                                        <select
+                                          value={selectedActions[report.id] || ''}
+                                          onChange={(e) => handleActionChange(report.id, e.target.value as (typeof moderationActionOptions)[number])}
+                                          className="rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                        >
+                                          <option value="" disabled>
+                                            Select action
                                           </option>
-                                        ))}
-                                      </select>
+                                          {moderationActionOptions.map((option) => (
+                                            <option key={option} value={option} className="bg-slate-900 text-white capitalize">
+                                              {option}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
 
-                                      <textarea
-                                        value={internalNotes[report.id] || ''}
-                                        onChange={(e) => handleNoteChange(report.id, e.target.value)}
-                                        maxLength={1000}
-                                        rows={3}
-                                        placeholder="Internal note for moderation log..."
-                                        className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                      />
+                                      <div className="grid gap-1">
+                                        <label className="text-xs text-slate-400">Internal note for moderation log</label>
+                                        <textarea
+                                          value={internalNotes[report.id] || ''}
+                                          onChange={(e) => handleNoteChange(report.id, e.target.value)}
+                                          maxLength={1000}
+                                          rows={3}
+                                          placeholder="Internal note for moderation log..."
+                                          className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                        />
+                                      </div>
 
                                       {selectedActions[report.id] === 'suspend' ? (
                                         <>
-                                          <textarea
-                                            value={suspensionReasons[report.id] || ''}
-                                            onChange={(e) => setSuspensionReasons((current) => ({ ...current, [report.id]: e.target.value }))}
-                                            maxLength={500}
-                                            rows={3}
-                                            placeholder="Suspension reason shown to the user..."
-                                            className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                          />
-                                          <input
-                                            type="datetime-local"
-                                            value={suspensionUntilValues[report.id] || ''}
-                                            onChange={(e) => setSuspensionUntilValues((current) => ({ ...current, [report.id]: e.target.value }))}
-                                            className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
-                                          />
+                                          <div className="grid gap-1">
+                                            <label className="text-xs text-slate-400">
+                                              Suspension reason shown to the user <span className="text-red-400">*</span>
+                                            </label>
+                                            <textarea
+                                              value={suspensionReasons[report.id] || ''}
+                                              onChange={(e) => setSuspensionReasons((current) => ({ ...current, [report.id]: e.target.value }))}
+                                              maxLength={500}
+                                              rows={3}
+                                              placeholder="Suspension reason shown to the user..."
+                                              className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                            />
+                                          </div>
+                                          <div className="grid gap-1">
+                                            <label className="text-xs text-slate-400">Suspended until</label>
+                                            <input
+                                              type="datetime-local"
+                                              value={suspensionUntilValues[report.id] || ''}
+                                              onChange={(e) => setSuspensionUntilValues((current) => ({ ...current, [report.id]: e.target.value }))}
+                                              className="w-full rounded-2xl border border-white/10 bg-slate-950/90 px-3 py-2 text-sm text-white outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-500/20"
+                                            />
+                                          </div>
                                         </>
                                       ) : null}
 
                                       <button
-                                        onClick={() => void handleApplyModeration(report.id)}
-                                        disabled={isBusy}
+                                        onClick={() => handleApplyModeration(report.id)}
+                                        disabled={isBusy || (selectedActions[report.id] === 'suspend' && !suspensionReasons[report.id]?.trim())}
                                         className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
                                       >
                                         {isBusy ? 'Applying...' : 'Apply action'}

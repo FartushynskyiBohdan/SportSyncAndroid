@@ -387,4 +387,120 @@ router.post('/reports/:id/moderate', async (req, res) => {
   }
 });
 
+router.get('/users/:id/profile', async (req, res) => {
+  const targetId = Number(req.params.id);
+  if (!Number.isInteger(targetId) || targetId <= 0) {
+    return res.status(400).json({ error: 'Invalid user id.' });
+  }
+
+  try {
+    const [profileRows] = await db.execute(
+      `SELECT
+         u.user_id,
+         u.email,
+         u.account_status,
+         u.suspended_until,
+         u.suspension_reason,
+         u.last_active,
+         u.created_at,
+         pr.first_name,
+         pr.bio,
+         TIMESTAMPDIFF(YEAR, pr.birth_date, CURDATE()) AS age,
+         c.city_name,
+         co.country_name,
+         rg.goal_name
+       FROM users u
+       LEFT JOIN profiles pr     ON pr.user_id    = u.user_id
+       LEFT JOIN cities c        ON c.city_id      = pr.city_id
+       LEFT JOIN countries co    ON co.country_id  = c.country_id
+       LEFT JOIN preferences prf ON prf.user_id    = u.user_id
+       LEFT JOIN relationship_goals rg ON rg.goal_id = prf.goal_id
+       WHERE u.user_id = ?`,
+      [targetId]
+    );
+
+    if (profileRows.length === 0) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const user = profileRows[0];
+
+    const [photoRows] = await db.execute(
+      `SELECT photo_url FROM user_photos WHERE user_id = ? ORDER BY display_order ASC, photo_id ASC`,
+      [targetId]
+    );
+
+    const [sportRows] = await db.execute(
+      `SELECT
+         s.sport_name,
+         sl.level_name,
+         tf.frequency_label,
+         us.years_experience
+       FROM user_sports us
+       JOIN sports s                ON s.sport_id        = us.sport_id
+       JOIN skill_levels sl         ON sl.skill_level_id = us.skill_level_id
+       JOIN training_frequencies tf ON tf.frequency_id   = us.frequency_id
+       WHERE us.user_id = ?
+       ORDER BY sl.sort_order DESC, us.sport_id ASC`,
+      [targetId]
+    );
+
+    const [priorActions] = await db.execute(
+      `SELECT
+         ma.action_type,
+         ma.previous_account_status,
+         ma.new_account_status,
+         ma.note,
+         ma.created_at,
+         admin.email AS admin_email
+       FROM moderation_actions ma
+       JOIN users admin ON admin.user_id = ma.admin_id
+       WHERE ma.target_user_id = ?
+       ORDER BY ma.created_at DESC
+       LIMIT 20`,
+      [targetId]
+    );
+
+    const { iconForSport } = require('../lib/sportIcons');
+    const lastActiveMs = user.last_active ? new Date(user.last_active).getTime() : null;
+    const isOnline = lastActiveMs !== null && (Date.now() - lastActiveMs) < 5 * 60 * 1000;
+
+    const freqCounts = new Map();
+    for (const s of sportRows) {
+      freqCounts.set(s.frequency_label, (freqCounts.get(s.frequency_label) || 0) + 1);
+    }
+    const primaryFrequency = [...freqCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    res.json({
+      id:               user.user_id,
+      email:            user.email,
+      accountStatus:    user.account_status,
+      suspendedUntil:   user.suspended_until,
+      suspensionReason: user.suspension_reason,
+      createdAt:        user.created_at,
+      lastActive:       user.last_active,
+      isOnline,
+      name:             user.first_name || null,
+      age:              user.age || null,
+      city:             user.city_name || null,
+      country:          user.country_name || null,
+      bio:              user.bio || null,
+      goal:             user.goal_name || null,
+      primaryFrequency,
+      photos:           photoRows.map(p => p.photo_url),
+      sports: sportRows.map(s => ({
+        icon:            iconForSport(s.sport_name),
+        name:            s.sport_name,
+        level:           s.level_name,
+        frequency:       s.frequency_label,
+        yearsExperience: s.years_experience,
+      })),
+      priorActions,
+    });
+  } catch (error) {
+    console.error('Error fetching admin user profile:', error);
+    res.status(500).json({ error: 'Failed to fetch user profile.' });
+  }
+});
+
 module.exports = router;

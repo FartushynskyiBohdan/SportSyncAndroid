@@ -26,6 +26,7 @@ import { AdminLayout } from "./pages/admin/AdminLayout";
 import { AdminHome } from "./pages/admin/AdminHome";
 import { AdminUsers } from "./pages/admin/AdminUsers";
 import { AdminReports } from "./pages/admin/AdminReports";
+import { AdminUserProfile } from "./pages/admin/AdminUserProfile";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -100,6 +101,7 @@ export const router = createBrowserRouter([
           { path: "home", Component: AdminHome },
           { path: "users", Component: AdminUsers },
           { path: "reports", Component: AdminReports },
+          { path: "users/:userId", Component: AdminUserProfile },
         ],
       },
     ],
