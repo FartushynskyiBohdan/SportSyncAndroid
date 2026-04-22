@@ -13,6 +13,7 @@ const usersRoutes = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Middleware  
 app.use(cors());
@@ -33,6 +34,6 @@ app.get('/', (req, res) => {
   res.json({ message: 'SportSync Backend API' });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server running on http://${HOST}:${PORT}`);
 });

@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "SportSync",
+    "slug": "sportsync-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.sportsync.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#090d21"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow SportSync to access your photos to set a profile picture."
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://10.0.2.2:3000"
+    }
+  }
+}
