@@ -23,5 +23,8 @@ jobs:
             git pull
             cd backend
             npm install --production
+            # Clear any stale process occupying port 3000 (e.g. a manually started node process
+            # from a previous session) so systemctl restart does not fail with EADDRINUSE.
+            sudo fuser -k 3000/tcp || true
             sudo systemctl restart sportsync
 
