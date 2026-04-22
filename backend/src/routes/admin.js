@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { iconForSport } = require('../lib/sportIcons');
 
 const router = express.Router();
 router.use(authenticateToken, requireAdmin);
@@ -461,7 +462,6 @@ router.get('/users/:id/profile', async (req, res) => {
       [targetId]
     );
 
-    const { iconForSport } = require('../lib/sportIcons');
     const lastActiveMs = user.last_active ? new Date(user.last_active).getTime() : null;
     const isOnline = lastActiveMs !== null && (Date.now() - lastActiveMs) < 5 * 60 * 1000;
 

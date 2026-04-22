@@ -508,7 +508,36 @@ export function AdminReports() {
                                             />
                                           </div>
                                           <div className="grid gap-1">
-                                            <label className="text-xs text-slate-400">Suspended until</label>
+                                            <label className="text-xs text-slate-400">Suspended until <span className="text-red-400">*</span></label>
+                                            <div className="flex flex-wrap gap-1.5 mb-1">
+                                              {[
+                                                { label: '1 day',   days: 1   },
+                                                { label: '3 days',  days: 3   },
+                                                { label: '7 days',  days: 7   },
+                                                { label: '30 days', days: 30  },
+                                              ].map(({ label, days }) => {
+                                                const target = (() => {
+                                                  const d = new Date();
+                                                  d.setDate(d.getDate() + days);
+                                                  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                                                })();
+                                                const isActive = suspensionUntilValues[report.id] === target;
+                                                return (
+                                                  <button
+                                                    key={label}
+                                                    type="button"
+                                                    onClick={() => setSuspensionUntilValues((current) => ({ ...current, [report.id]: target }))}
+                                                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                                                      isActive
+                                                        ? 'bg-purple-500 border-purple-400 text-white'
+                                                        : 'border-white/20 text-slate-300 hover:bg-white/10'
+                                                    }`}
+                                                  >
+                                                    {label}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
                                             <input
                                               type="datetime-local"
                                               value={suspensionUntilValues[report.id] || ''}
@@ -521,7 +550,12 @@ export function AdminReports() {
 
                                       <button
                                         onClick={() => handleApplyModeration(report.id)}
-                                        disabled={isBusy || (selectedActions[report.id] === 'suspend' && !suspensionReasons[report.id]?.trim())}
+                                        disabled={
+                                          isBusy ||
+                                          !selectedActions[report.id] ||
+                                          (selectedActions[report.id] === 'suspend' && !suspensionReasons[report.id]?.trim()) ||
+                                          (selectedActions[report.id] === 'suspend' && !suspensionUntilValues[report.id]?.trim())
+                                        }
                                         className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
                                       >
                                         {isBusy ? 'Applying...' : 'Apply action'}
