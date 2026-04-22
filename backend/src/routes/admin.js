@@ -311,7 +311,7 @@ router.post('/reports/:id/moderate', async (req, res) => {
     const report = reportRows[0];
     const previousAccountStatus = report.account_status;
     const nextAccountStatusByAction = {
-      warn: 'active',
+      warn: previousAccountStatus,
       suspend: 'suspended',
       ban: 'banned',
       dismiss: previousAccountStatus,
