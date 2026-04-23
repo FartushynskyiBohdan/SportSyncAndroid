@@ -93,6 +93,12 @@ function SelectField({
 export function Settings() {
   const { user, updateUser } = useAuth();
 
+  const maxBirthDate = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d.toISOString().split("T")[0];
+  })();
+
   const [form, setForm] = useState<AccountFormState>({
     email: user?.email ?? "",
     first_name: "",
@@ -255,6 +261,23 @@ export function Settings() {
       return;
     }
 
+    const dob = new Date(form.birth_date);
+    if (Number.isNaN(dob.getTime())) {
+      setAccountError("Birth date must be a valid date.");
+      return;
+    }
+
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age -= 1;
+    }
+    if (age < 18) {
+      setAccountError("You must be at least 18 years old.");
+      return;
+    }
+
     setSavingAccount(true);
     try {
       const response = await api.put("/api/settings/account", {
@@ -344,7 +367,8 @@ export function Settings() {
               <Input
                 id="firstName"
                 value={form.first_name}
-                disabled
+                onChange={(event) => setField("first_name", event.target.value)}
+                disabled={!accountUnlocked}
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
               />
             </div>
@@ -355,7 +379,8 @@ export function Settings() {
               <Input
                 id="lastName"
                 value={form.last_name}
-                disabled
+                onChange={(event) => setField("last_name", event.target.value)}
+                disabled={!accountUnlocked}
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
               />
             </div>
@@ -370,7 +395,8 @@ export function Settings() {
                 id="email"
                 type="email"
                 value={form.email}
-                disabled
+                onChange={(event) => setField("email", event.target.value)}
+                disabled={!accountUnlocked}
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white placeholder:text-white/35"
               />
             </div>
@@ -382,7 +408,9 @@ export function Settings() {
                 id="birthDate"
                 type="date"
                 value={form.birth_date}
-                disabled
+                onChange={(event) => setField("birth_date", event.target.value)}
+                max={maxBirthDate}
+                disabled={!accountUnlocked}
                 className="h-11 rounded-2xl border-white/15 bg-white/10 text-white"
               />
             </div>

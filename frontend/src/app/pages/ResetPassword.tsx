@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { motion } from 'motion/react';
 import { Link, useSearchParams } from 'react-router';
@@ -19,6 +19,17 @@ export function ResetPassword() {
 
   const [isSuccess, setIsSuccess] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    if (!isSuccess) return;
+    if (countdown <= 0) {
+      window.location.href = '/login';
+      return;
+    }
+    const t = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [isSuccess, countdown]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -96,7 +107,7 @@ export function ResetPassword() {
               </div>
               <h1 className="text-2xl font-black tracking-tight mb-2">Password reset!</h1>
               <p className="text-purple-200/70 text-sm mb-8 leading-relaxed">
-                Your password has been updated successfully. You'll be redirected to the login page in a few seconds.
+                Your password has been updated successfully. Redirecting to login in {countdown}s…
               </p>
               <Link
                 to="/login"

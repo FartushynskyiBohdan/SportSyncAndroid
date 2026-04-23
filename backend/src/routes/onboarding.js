@@ -239,6 +239,10 @@ router.post('/onboarding/profile', auth, async (req, res) => {
 
     // Age check (must be >= 18)
     const dob = new Date(birth_date);
+    if (Number.isNaN(dob.getTime())) {
+      return res.status(400).json({ error: 'Birth date must be a valid date.' });
+    }
+
     const today = new Date();
     const age = today.getFullYear() - dob.getFullYear()
       - (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);

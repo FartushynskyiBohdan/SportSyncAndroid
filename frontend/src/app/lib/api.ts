@@ -17,20 +17,22 @@ api.interceptors.response.use(
   error => {
     if (error.response?.status === 403) {
       const data = error.response?.data;
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
 
       if (data?.reason === 'suspended') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         sessionStorage.setItem('suspension_notice', JSON.stringify({
           reason: data?.suspensionReason,
           until: data?.until ?? null,
         }));
         window.location.href = '/account-suspended';
-      }
-
-      if (data?.reason === 'banned') {
+      } else if (data?.reason === 'banned') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         sessionStorage.setItem('auth_notice', data?.error || 'This account has been permanently disabled for violating our terms.');
         window.location.href = '/login';
       }

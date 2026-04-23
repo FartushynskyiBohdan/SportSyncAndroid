@@ -141,6 +141,12 @@ export function Messages() {
   const [inputText, setInputText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
+  const [clearingChat, setClearingChat] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const [forceScrollToBottom, setForceScrollToBottom] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const optionsMenuRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const renderedConversations = useMemo<RenderConversation[]>(() => {
@@ -244,9 +250,46 @@ export function Messages() {
     }
   }, []);
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const threshold = 72;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setIsAtBottom(distanceToBottom <= threshold);
   }, [thread?.messages.length]);
+
+  useEffect(() => {
+    if (!thread) return;
+    if (forceScrollToBottom || isAtBottom) {
+      scrollToBottom(forceScrollToBottom ? 'smooth' : 'auto');
+      if (forceScrollToBottom) {
+        setForceScrollToBottom(false);
+      }
+    }
+  }, [thread?.messages.length, isAtBottom, forceScrollToBottom, scrollToBottom, thread]);
+
+  useEffect(() => {
+    setShowOptionsMenu(false);
+  }, [activeMatchId]);
+
+  useEffect(() => {
+    if (!showOptionsMenu) return;
+
+    const onDocumentClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (optionsMenuRef.current && !optionsMenuRef.current.contains(target)) {
+        setShowOptionsMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onDocumentClick);
+    return () => document.removeEventListener('mousedown', onDocumentClick);
+  }, [showOptionsMenu]);
 
   useEffect(() => {
     loadConversations(false);
@@ -307,6 +350,31 @@ export function Messages() {
       }
     });
 
+    source.addEventListener('chat_cleared', (evt) => {
+      try {
+        const { matchId } = JSON.parse((evt as MessageEvent).data) as { matchId: number };
+
+        setThread((prev) => {
+          if (!prev || prev.matchId !== matchId) return prev;
+          return { ...prev, messages: [] };
+        });
+
+        setConversations((prev) => prev.map((c) => (
+          c.matchId === matchId
+            ? {
+                ...c,
+                lastMessage: null,
+                lastMessageSentAt: null,
+                lastMessageSenderId: null,
+                unreadCount: 0,
+              }
+            : c
+        )));
+      } catch {
+        // Ignore malformed payloads.
+      }
+    });
+
     return () => source.close();
   }, [user?.id]);
 
@@ -348,6 +416,7 @@ export function Messages() {
     if (!text) {
       setInputText('');
     }
+    setForceScrollToBottom(true);
 
     try {
       const response = await apiClient.post<Message>(`/api/messages/${targetMatchId}`, {
@@ -378,6 +447,43 @@ export function Messages() {
         return { ...prev, messages: prev.messages.filter((m) => m.id !== tempId) };
       });
       setPageError('Failed to send message. Please try again.');
+    }
+  };
+
+  const handleMessageScroll = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const threshold = 72;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    setIsAtBottom(distanceToBottom <= threshold);
+  };
+
+  const clearConversation = async () => {
+    if (!activeMatchId || !thread) return;
+    const confirmed = window.confirm('Clear this chat history? This will remove all messages in this conversation for both users.');
+    if (!confirmed) return;
+
+    setClearingChat(true);
+    setPageError('');
+    try {
+      await apiClient.delete(`/api/messages/${activeMatchId}`);
+      setThread((prev) => (prev && prev.matchId === activeMatchId ? { ...prev, messages: [] } : prev));
+      setConversations((prev) => prev.map((conversation) => (
+        conversation.matchId === activeMatchId
+          ? {
+              ...conversation,
+              lastMessage: null,
+              lastMessageSentAt: null,
+              lastMessageSenderId: null,
+              unreadCount: 0,
+            }
+          : conversation
+      )));
+      setShowOptionsMenu(false);
+    } catch {
+      setPageError('Failed to clear chat. Please try again.');
+    } finally {
+      setClearingChat(false);
     }
   };
 
@@ -437,7 +543,7 @@ export function Messages() {
 
         {/* ── Right Chat Panel ── */}
         <main
-          className={`flex-1 flex flex-col overflow-hidden
+          className={`flex-1 flex flex-col overflow-hidden min-h-0 relative
             ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}
         >
           {!activeConversation || !thread ? (
@@ -480,13 +586,35 @@ export function Messages() {
               </div>
             </div>
 
-            <button className="text-white/50 hover:text-white transition-colors">
-              <MoreVertical className="w-5 h-5" />
-            </button>
+            <div className="relative" ref={optionsMenuRef}>
+              <button
+                className="text-white/50 hover:text-white transition-colors"
+                aria-label="Chat options"
+                onClick={() => setShowOptionsMenu((prev) => !prev)}
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+
+              {showOptionsMenu && (
+                <div className="absolute right-0 mt-2 w-44 rounded-xl border border-white/15 bg-[#1f0d47] shadow-xl overflow-hidden z-20">
+                  <button
+                    onClick={clearConversation}
+                    disabled={clearingChat}
+                    className="w-full text-left px-4 py-2.5 text-sm text-rose-200 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {clearingChat ? 'Clearing chat...' : 'Clear chat'}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Messages area */}
-          <div className="flex-1 overflow-y-auto px-5 py-6 space-y-3">
+          <div
+            ref={messagesContainerRef}
+            onScroll={handleMessageScroll}
+            className="flex-1 overflow-y-auto px-5 py-6 space-y-3 min-h-0"
+          >
             {loadingMessages ? (
               <div className="h-full flex items-center justify-center text-white/50 text-sm gap-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -543,6 +671,20 @@ export function Messages() {
             })}
             <div ref={messagesEndRef} />
           </div>
+
+          {!isAtBottom && !loadingMessages ? (
+            <div className="absolute bottom-24 right-6">
+              <button
+                onClick={() => {
+                  setForceScrollToBottom(true);
+                  scrollToBottom();
+                }}
+                className="px-3 py-1.5 text-xs font-medium rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white shadow-lg"
+              >
+                Jump to latest
+              </button>
+            </div>
+          ) : null}
 
           {/* Input area */}
           <div className="px-5 py-4 border-t border-white/10 bg-black/10 backdrop-blur-sm shrink-0">

@@ -17,6 +17,7 @@ export function Login() {
     return '';
   });
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const { isAuthenticated, isAdmin, user, login } = useAuth();
   const navigate = useNavigate();
 
@@ -36,7 +37,7 @@ export function Login() {
       const response = await api.post('/api/auth/login', { email, password });
       const { token, user: loggedIn } = response.data;
       sessionStorage.removeItem('suspension_notice');
-      login(token, loggedIn);
+      login(token, loggedIn, rememberMe);
       const dest = loggedIn.role === 'admin'
         ? '/admin/home'
         : loggedIn.onboardingComplete ? '/discover' : '/onboarding/profile';
@@ -81,7 +82,7 @@ export function Login() {
                   <div className="text-red-400 text-sm text-center">{error}</div>
                 )}
                 <div className="space-y-1.5">
-                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email or Username</label>
+                    <label className="text-sm font-medium pl-1 text-white/80" htmlFor="email">Email</label>
                     <input 
                         type="text" 
                         id="email"
@@ -96,7 +97,7 @@ export function Login() {
                 <div className="space-y-1.5">
                     <div className="flex justify-between items-center pl-1">
                         <label className="text-sm font-medium text-white/80" htmlFor="password">Password</label>
-                        <a href="#" className="text-xs text-purple-300 hover:text-white transition-colors">Forgot password?</a>
+                        <Link to="/forgot-password" className="text-xs text-purple-300 hover:text-white transition-colors">Forgot password?</Link>
                     </div>
                     <input 
                         type="password" 
@@ -109,11 +110,11 @@ export function Login() {
                     />
                 </div>
 
-                <div className="flex items-center gap-3 pl-1 group cursor-pointer">
-                    <div className="w-5 h-5 rounded flex items-center justify-center bg-white/10 border border-white/30 group-hover:border-white/60 transition-colors">
-                        {/* Check icon would go here when checked */}
+                <div className="flex items-center gap-3 pl-1 cursor-pointer" onClick={() => setRememberMe(v => !v)}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border transition-colors ${rememberMe ? 'bg-purple-500 border-purple-400' : 'bg-white/10 border-white/30 hover:border-white/60'}`}>
+                        {rememberMe && <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </div>
-                    <label htmlFor="remember" className="text-sm font-medium text-white/70 group-hover:text-white transition-colors cursor-pointer select-none">Remember me</label>
+                    <label htmlFor="remember" className="text-sm font-medium text-white/70 hover:text-white transition-colors cursor-pointer select-none">Remember me</label>
                 </div>
 
                 <button 

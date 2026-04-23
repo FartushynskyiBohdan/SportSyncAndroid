@@ -315,4 +315,36 @@ router.patch('/messages/:matchId/read', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/messages/:matchId
+router.delete('/messages/:matchId', auth, async (req, res) => {
+  const userId = req.userId;
+  const matchId = parseMatchId(req.params.matchId);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (!matchId) {
+    return res.status(400).json({ error: 'Invalid match id.' });
+  }
+
+  try {
+    const match = await getMatchForUser(db, matchId, userId);
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+
+    await db.execute('DELETE FROM messages WHERE match_id = ?', [matchId]);
+
+    // Realtime sync for both participants (including other open tabs of initiator).
+    const payload = { matchId };
+    sseHub.publish(userId, 'chat_cleared', payload);
+    sseHub.publish(match.otherUserId, 'chat_cleared', payload);
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error clearing chat messages:', error);
+    res.status(500).json({ error: 'Failed to clear chat.' });
+  }
+});
+
 module.exports = router;
