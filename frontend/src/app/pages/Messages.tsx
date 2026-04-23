@@ -5,8 +5,11 @@ import { Navbar } from '../components/Navbar';
 import apiClient from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 
-const POLL_INTERVAL_MS = 15000;
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
+
+function readToken(): string | null {
+  return localStorage.getItem('token') ?? sessionStorage.getItem('token');
+}
 
 type Message = {
   id: number;
@@ -254,16 +257,58 @@ export function Messages() {
     loadThread(activeMatchId, false);
   }, [activeMatchId, loadThread]);
 
+  const activeMatchIdRef = useRef<number | null>(null);
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      loadConversations(true);
-      if (activeMatchId) {
-        loadThread(activeMatchId, true);
-      }
-    }, POLL_INTERVAL_MS);
+    activeMatchIdRef.current = activeMatchId;
+  }, [activeMatchId]);
 
-    return () => window.clearInterval(timer);
-  }, [activeMatchId, loadConversations, loadThread]);
+  useEffect(() => {
+    if (!user?.id) return;
+    const token = readToken();
+    if (!token) return;
+
+    const source = new EventSource(
+      `/api/notifications/stream?token=${encodeURIComponent(token)}`
+    );
+
+    source.addEventListener('message', (evt) => {
+      try {
+        const { matchId, message } = JSON.parse((evt as MessageEvent).data) as {
+          matchId: number;
+          message: Message;
+        };
+        const isActive = activeMatchIdRef.current === matchId;
+
+        setThread((prev) => {
+          if (!prev || prev.matchId !== matchId) return prev;
+          if (prev.messages.some((m) => m.id === message.id)) return prev;
+          return { ...prev, messages: [...prev.messages, message] };
+        });
+
+        setConversations((prev) => prev.map((c) => (
+          c.matchId === matchId
+            ? {
+                ...c,
+                lastMessage: message.text,
+                lastMessageSentAt: message.sentAt,
+                lastMessageSenderId: message.senderId,
+                unreadCount: isActive ? 0 : c.unreadCount + 1,
+              }
+            : c
+        )));
+
+        if (isActive) {
+          apiClient
+            .patch(`/api/messages/${matchId}/read`)
+            .catch(() => { /* best-effort */ });
+        }
+      } catch {
+        // Ignore malformed payloads.
+      }
+    });
+
+    return () => source.close();
+  }, [user?.id]);
 
   const selectConversation = (matchId: number) => {
     setActiveMatchId(matchId);
@@ -271,28 +316,54 @@ export function Messages() {
   };
 
   const sendMessage = async (text?: string) => {
-    if (!activeMatchId) return;
+    if (!activeMatchId || !user?.id) return;
     const content = (text ?? inputText).trim();
     if (!content) return;
 
+    const tempId = -Date.now();
+    const nowIso = new Date().toISOString();
+    const optimistic: Message = {
+      id: tempId,
+      senderId: user.id,
+      text: content,
+      sentAt: nowIso,
+      readAt: null,
+    };
+    const targetMatchId = activeMatchId;
+
+    setThread((prev) => {
+      if (!prev || prev.matchId !== targetMatchId) return prev;
+      return { ...prev, messages: [...prev.messages, optimistic] };
+    });
+    setConversations((prev) => prev.map((conversation) => (
+      conversation.matchId === targetMatchId
+        ? {
+            ...conversation,
+            lastMessage: content,
+            lastMessageSentAt: nowIso,
+            lastMessageSenderId: user.id,
+          }
+        : conversation
+    )));
+    if (!text) {
+      setInputText('');
+    }
+
     try {
-      const response = await apiClient.post<Message>(`/api/messages/${activeMatchId}`, {
+      const response = await apiClient.post<Message>(`/api/messages/${targetMatchId}`, {
         text: content,
       });
 
       const newMessage = response.data;
       setThread((prev) => {
-        if (!prev || prev.matchId !== activeMatchId) {
-          return prev;
-        }
+        if (!prev || prev.matchId !== targetMatchId) return prev;
         return {
           ...prev,
-          messages: [...prev.messages, newMessage],
+          messages: prev.messages.map((m) => (m.id === tempId ? newMessage : m)),
         };
       });
-
       setConversations((prev) => prev.map((conversation) => (
-        conversation.matchId === activeMatchId
+        conversation.matchId === targetMatchId
           ? {
               ...conversation,
               lastMessage: newMessage.text,
@@ -301,11 +372,11 @@ export function Messages() {
             }
           : conversation
       )));
-
-      if (!text) {
-        setInputText('');
-      }
     } catch {
+      setThread((prev) => {
+        if (!prev || prev.matchId !== targetMatchId) return prev;
+        return { ...prev, messages: prev.messages.filter((m) => m.id !== tempId) };
+      });
       setPageError('Failed to send message. Please try again.');
     }
   };

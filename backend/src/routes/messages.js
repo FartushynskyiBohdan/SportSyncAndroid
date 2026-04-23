@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
 const notificationService = require('../lib/notificationService');
+const sseHub = require('../lib/sseHub');
 
 const router = express.Router();
 
@@ -248,13 +249,6 @@ router.post('/messages/:matchId', auth, async (req, res) => {
 
     await connection.commit();
 
-    if (notificationId) {
-      // Fire-and-forget: SSE broadcast shouldn't block the message response.
-      notificationService.broadcast(notificationId).catch((err) => {
-        console.error('Error broadcasting message notification:', err);
-      });
-    }
-
     const [rows] = await db.execute(
       `SELECT message_id, sender_id, message_text, sent_at, read_at
        FROM messages
@@ -263,19 +257,61 @@ router.post('/messages/:matchId', auth, async (req, res) => {
     );
 
     const message = rows[0];
-    res.status(201).json({
+    const payload = {
       id: message.message_id,
       senderId: message.sender_id,
       text: message.message_text,
       sentAt: message.sent_at,
       readAt: message.read_at,
-    });
+    };
+
+    if (notificationId) {
+      notificationService.broadcast(notificationId).catch((err) => {
+        console.error('Error broadcasting message notification:', err);
+      });
+    }
+
+    sseHub.publish(match.otherUserId, 'message', { matchId, message: payload });
+
+    res.status(201).json(payload);
   } catch (error) {
     await connection.rollback();
     console.error('Error sending message:', error);
     res.status(500).json({ error: 'Failed to send message.' });
   } finally {
     connection.release();
+  }
+});
+
+// PATCH /api/messages/:matchId/read
+router.patch('/messages/:matchId/read', auth, async (req, res) => {
+  const userId = req.userId;
+  const matchId = parseMatchId(req.params.matchId);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (!matchId) {
+    return res.status(400).json({ error: 'Invalid match id.' });
+  }
+
+  try {
+    const match = await getMatchForUser(db, matchId, userId);
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+
+    await db.execute(
+      `UPDATE messages
+       SET read_at = NOW()
+       WHERE match_id = ? AND sender_id != ? AND read_at IS NULL`,
+      [matchId, userId]
+    );
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error marking messages as read:', error);
+    res.status(500).json({ error: 'Failed to mark messages as read.' });
   }
 });
 
