@@ -29,7 +29,11 @@ function formatUntil(value?: string | null) {
     return 'until further notice';
   }
 
-  return date.toLocaleString();
+  return date.toLocaleString(undefined, {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZoneName: 'short',
+  });
 }
 
 export function SuspendedAccount() {
