@@ -19,6 +19,16 @@ export default defineConfig({
 
   server: {
     proxy: {
+      '/api/notifications/stream': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        // Disable proxy buffering so SSE events are flushed through immediately.
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            proxyRes.headers['cache-control'] = 'no-cache';
+          });
+        },
+      },
       '/api':     'http://localhost:3000',
       '/uploads': 'http://localhost:3000',
     },
