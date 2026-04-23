@@ -194,6 +194,7 @@ router.get('/reports/:id/context', async (req, res) => {
         ma.previous_account_status,
         ma.new_account_status,
         ma.note,
+        ma.suspended_until,
         ma.created_at,
         admin.email AS admin_email
       FROM moderation_actions ma
@@ -345,9 +346,9 @@ router.post('/reports/:id/moderate', async (req, res) => {
 
     await connection.execute(
       `INSERT INTO moderation_actions
-       (complaint_id, admin_id, target_user_id, action_type, previous_account_status, new_account_status, note)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [complaintId, req.userId, report.reported_id, action, previousAccountStatus, nextAccountStatus, note || null]
+       (complaint_id, admin_id, target_user_id, action_type, previous_account_status, new_account_status, note, suspended_until)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [complaintId, req.userId, report.reported_id, action, previousAccountStatus, nextAccountStatus, note || null, nextSuspendedUntil || null]
     );
 
     const actionLabel = action.charAt(0).toUpperCase() + action.slice(1);
@@ -450,6 +451,7 @@ router.get('/users/:id/profile', async (req, res) => {
          ma.previous_account_status,
          ma.new_account_status,
          ma.note,
+         ma.suspended_until,
          ma.created_at,
          admin.email AS admin_email
        FROM moderation_actions ma

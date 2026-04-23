@@ -38,6 +38,7 @@ interface PriorAction {
   action_type: 'warn' | 'suspend' | 'ban' | 'dismiss';
   previous_account_status: 'active' | 'suspended' | 'banned';
   new_account_status: 'active' | 'suspended' | 'banned';
+  suspended_until: string | null;
   note: string | null;
   created_at: string;
   admin_email: string;
@@ -453,6 +454,9 @@ export function AdminReports() {
                                           <p className="text-slate-200 capitalize">{item.action_type} • {item.previous_account_status} -&gt; {item.new_account_status}</p>
                                           <p className="text-slate-400">By: {item.admin_email}</p>
                                           <p className="text-slate-400">{formatDate(item.created_at)}</p>
+                                          {item.action_type === 'suspend' && item.suspended_until && (
+                                            <p className="text-slate-400">Until: {formatDate(item.suspended_until)}</p>
+                                          )}
                                           {item.note ? <p className="mt-1 text-slate-300">{item.note}</p> : null}
                                         </div>
                                       ))}

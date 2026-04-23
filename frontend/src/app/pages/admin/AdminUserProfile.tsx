@@ -23,6 +23,7 @@ type PriorAction = {
   previous_account_status: string;
   new_account_status: string;
   note: string | null;
+  suspended_until: string | null;
   created_at: string;
   admin_email: string;
 };
@@ -337,6 +338,9 @@ export function AdminUserProfile() {
                         </span>
                       </p>
                       <p className="text-white/40 text-xs mt-0.5">By {action.admin_email} · {formatDate(action.created_at)}</p>
+                      {action.action_type === 'suspend' && action.suspended_until && (
+                        <p className="text-white/40 text-xs mt-0.5">Until: {formatDate(action.suspended_until)}</p>
+                      )}
                       {action.note && <p className="text-white/60 text-xs mt-1">{action.note}</p>}
                     </div>
                   ))}

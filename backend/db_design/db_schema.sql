@@ -415,6 +415,7 @@ CREATE TABLE moderation_actions (
     previous_account_status ENUM('active', 'suspended', 'banned')     NOT NULL,
     new_account_status      ENUM('active', 'suspended', 'banned')     NOT NULL,
     note                    TEXT      NULL,
+    suspended_until         DATETIME  NULL,
     created_at              TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (action_id),
     KEY idx_moderation_actions_target_user (target_user_id, created_at),
