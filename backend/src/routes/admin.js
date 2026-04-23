@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../config/database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { iconForSport } = require('../lib/sportIcons');
+const notificationService = require('../lib/notificationService');
 
 const router = express.Router();
 router.use(authenticateToken, requireAdmin);
@@ -16,14 +17,6 @@ async function getComplaintStatusId(connection, statusName) {
     [statusName]
   );
   return rows[0]?.status_id ?? null;
-}
-
-async function getNotificationTypeId(connection, typeName) {
-  const [rows] = await connection.execute(
-    'SELECT type_id FROM notification_types WHERE type_name = ? LIMIT 1',
-    [typeName]
-  );
-  return rows[0]?.type_id ?? null;
 }
 
 router.get('/overview', async (_req, res) => {
@@ -357,21 +350,26 @@ router.post('/reports/:id/moderate', async (req, res) => {
       [complaintId, req.userId, report.reported_id, action, previousAccountStatus, nextAccountStatus, note || null]
     );
 
-    const adminWarningTypeId = await getNotificationTypeId(connection, 'admin_warning');
-    if (adminWarningTypeId) {
-      const actionLabel = action.charAt(0).toUpperCase() + action.slice(1);
-      const message = action === 'dismiss'
-        ? 'A report involving your account was reviewed and dismissed.'
-        : `Admin action applied to your account: ${actionLabel}.`;
+    const actionLabel = action.charAt(0).toUpperCase() + action.slice(1);
+    const notificationMessage = action === 'dismiss'
+      ? 'A report involving your account was reviewed and dismissed.'
+      : `Admin action applied to your account: ${actionLabel}.`;
 
-      await connection.execute(
-        `INSERT INTO notifications (user_id, type_id, complaint_id, message)
-         VALUES (?, ?, ?, ?)`,
-        [report.reported_id, adminWarningTypeId, complaintId, message]
-      );
-    }
+    const notificationId = await notificationService.createNotification(connection, {
+      userId: report.reported_id,
+      typeName: 'admin_warning',
+      complaintId,
+      message: notificationMessage,
+    });
 
     await connection.commit();
+
+    if (notificationId) {
+      notificationService.broadcast(notificationId).catch((err) => {
+        console.error('Error broadcasting admin warning notification:', err);
+      });
+    }
+
     res.json({
       message: 'Moderation action applied.',
       action,

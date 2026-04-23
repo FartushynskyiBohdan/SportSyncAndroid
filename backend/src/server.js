@@ -10,6 +10,7 @@ const messagesRoutes = require('./routes/messages');
 const settingsRoutes = require('./routes/settings');
 const adminRoutes = require('./routes/admin');
 const usersRoutes = require('./routes/users');
+const notificationsRoutes = require('./routes/notifications');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -27,6 +28,7 @@ app.use('/api', matchesRoutes);
 app.use('/api', messagesRoutes);
 app.use('/api', settingsRoutes);
 app.use('/api', usersRoutes);
+app.use('/api', notificationsRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {

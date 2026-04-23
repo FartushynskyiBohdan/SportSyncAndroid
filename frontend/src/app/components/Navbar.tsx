@@ -1,8 +1,11 @@
 import { MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/app/context/AuthContext';
 import apiClient from '@/app/lib/api';
+import { useNotifications } from '@/app/hooks/useNotifications';
+import { NotificationPanel } from '@/app/components/NotificationPanel';
+import { Popover, PopoverContent, PopoverTrigger } from '@/app/components/ui/popover';
 
 const PRESENCE_PING_INTERVAL_MS = 60_000;
 
@@ -10,6 +13,8 @@ export function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, isAdmin } = useAuth();
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
+  const [notifOpen, setNotifOpen] = useState(false);
   const isDiscovery = location.pathname === '/discover';
   const isPublicPage = location.pathname === '/' || location.pathname === '/login';
   const isMatches = location.pathname === '/matches';
@@ -108,13 +113,39 @@ export function Navbar() {
                 >
                   <MessageSquare className="w-5 h-5" />
                 </button>
-                <button
-                  className={navIconClass(false)}
-                  aria-label="Open notifications"
-                  title="Notifications"
-                >
-                  <Bell className="w-5 h-5" />
-                </button>
+                <Popover open={notifOpen} onOpenChange={setNotifOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className={`${navIconClass(false)} relative`}
+                      aria-label="Open notifications"
+                      title="Notifications"
+                    >
+                      <Bell className="w-5 h-5" />
+                      {unreadCount > 0 && (
+                        <span
+                          className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
+                          aria-label={`${unreadCount} unread notifications`}
+                        >
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    sideOffset={8}
+                    className="p-0 w-auto bg-[#1e1b4b] border-white/10 text-white"
+                  >
+                    <NotificationPanel
+                      notifications={notifications}
+                      loading={loading}
+                      unreadCount={unreadCount}
+                      onMarkAsRead={markAsRead}
+                      onMarkAllAsRead={markAllAsRead}
+                      onDismiss={() => setNotifOpen(false)}
+                    />
+                  </PopoverContent>
+                </Popover>
                 <button
                   onClick={() => navigate('/settings')}
                   className={navIconClass(isSettings)}

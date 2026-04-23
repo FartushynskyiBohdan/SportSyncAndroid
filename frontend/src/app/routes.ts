@@ -59,7 +59,7 @@ export const router = createBrowserRouter([
     Component: DesignSystem,
   },
 
-  // Auth required ΓÇö onboarding pages
+  // Auth required only: onboarding pages
   {
     Component: ProtectedRoute,
     children: [
@@ -72,7 +72,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-  // Auth + onboarding complete required ΓÇö main app pages
+  // Auth + onboarding complete required: main app pages
   {
     Component: AppRoute,
     children: [

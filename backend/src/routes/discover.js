@@ -2,6 +2,7 @@ const express = require('express');
 const db      = require('../config/database');
 const auth    = require('../middleware/auth');
 const { iconForSport } = require('../lib/sportIcons');
+const notificationService = require('../lib/notificationService');
 
 const router = express.Router();
 
@@ -236,6 +237,8 @@ router.post('/discover/like/:id', auth, async (req, res) => {
 
     let matched = false;
     let matchId = null;
+    let viewerNotificationId = null;
+    let peerNotificationId = null;
 
     if (reciprocal.length > 0) {
       // Normalize so user1_id < user2_id to satisfy uq_matches
@@ -252,9 +255,30 @@ router.post('/discover/like/:id', auth, async (req, res) => {
       );
       matched = true;
       matchId = matchRows[0]?.match_id ?? null;
+
+      if (matchId) {
+        // One notification per user — each gets a row referencing the new match.
+        viewerNotificationId = await notificationService.createNotification(conn, {
+          userId,
+          typeName: 'new_match',
+          matchId,
+          message: 'You have a new match!',
+        });
+        peerNotificationId = await notificationService.createNotification(conn, {
+          userId: likedId,
+          typeName: 'new_match',
+          matchId,
+          message: 'You have a new match!',
+        });
+      }
     }
 
     await conn.commit();
+
+    // Broadcast after commit so the payload reflects committed state.
+    if (viewerNotificationId) await notificationService.broadcast(viewerNotificationId);
+    if (peerNotificationId) await notificationService.broadcast(peerNotificationId);
+
     res.json({ matched, matchId });
   } catch (error) {
     await conn.rollback();

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../config/database');
 const auth = require('../middleware/auth');
+const notificationService = require('../lib/notificationService');
 
 const router = express.Router();
 
@@ -238,21 +239,21 @@ router.post('/messages/:matchId', auth, async (req, res) => {
 
     const messageId = insertResult.insertId;
 
-    // Create a notification for the other matched user if notification type exists.
-    await connection.execute(
-      `INSERT INTO notifications (user_id, type_id, message_id, message)
-       SELECT ?, nt.type_id, ?, ?
-       FROM notification_types nt
-       WHERE nt.type_name = 'new_message'
-       LIMIT 1`,
-      [
-        match.otherUserId,
-        messageId,
-        'You have a new message.',
-      ]
-    );
+    const notificationId = await notificationService.createNotification(connection, {
+      userId: match.otherUserId,
+      typeName: 'new_message',
+      messageId,
+      message: 'You have a new message.',
+    });
 
     await connection.commit();
+
+    if (notificationId) {
+      // Fire-and-forget: SSE broadcast shouldn't block the message response.
+      notificationService.broadcast(notificationId).catch((err) => {
+        console.error('Error broadcasting message notification:', err);
+      });
+    }
 
     const [rows] = await db.execute(
       `SELECT message_id, sender_id, message_text, sent_at, read_at
