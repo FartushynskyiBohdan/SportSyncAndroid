@@ -51,7 +51,7 @@ export function SettingsDeleteAccount() {
   };
 
   return (
-    <SettingsShell note="Deleting an account removes the `users` record and all linked profile, match, message, notification, complaint, preference, and auth-reset data tied to that user.">
+    <SettingsShell>
       <SettingsPanel
         icon={<AlertTriangle className="h-5 w-5 text-white" />}
         title="Delete account"

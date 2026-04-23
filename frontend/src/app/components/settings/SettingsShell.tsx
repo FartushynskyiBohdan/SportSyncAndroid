@@ -33,10 +33,8 @@ export function SettingsPanel({
 }
 
 export function SettingsShell({
-  note,
   children,
 }: {
-  note: string;
   children: ReactNode;
 }) {
   const navigate = useNavigate();
@@ -85,9 +83,6 @@ export function SettingsShell({
             </div>
           </div>
 
-          <div className="max-w-md rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/75">
-            {note}
-          </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">

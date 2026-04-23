@@ -64,7 +64,7 @@ export function SettingsPassword() {
   };
 
   return (
-    <SettingsShell note="Password updates write back to `users.password_hash` after verifying the current password.">
+    <SettingsShell>
       <SettingsPanel
         icon={<Shield className="h-5 w-5 text-white" />}
         title="Password"

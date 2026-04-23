@@ -288,7 +288,7 @@ export function Settings() {
   };
 
   return (
-    <SettingsShell note="Account updates write to `users.email` plus the linked `profiles` record for name, birth date, gender, and city.">
+    <SettingsShell>
       {loadingPage ? (
         <div className="flex min-h-[360px] items-center justify-center rounded-3xl border border-white/10 bg-white/5">
           <div className="flex items-center gap-3 text-white/70">

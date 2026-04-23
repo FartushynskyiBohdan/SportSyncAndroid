@@ -64,7 +64,7 @@ export function BlockedUsers() {
   };
 
   return (
-    <SettingsShell note="Manage users you've blocked. Unblocking someone lets them see your profile and contact you again.">
+    <SettingsShell>
       <SettingsPanel
         icon={<Ban className="h-5 w-5 text-white" />}
         title="Blocked Users"
