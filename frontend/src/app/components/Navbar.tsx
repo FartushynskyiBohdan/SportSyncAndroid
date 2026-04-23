@@ -1,4 +1,4 @@
-import { MessageSquare, Bell, User, Menu, Settings } from 'lucide-react';
+import { MessageSquare, Bell, User, Menu, X, Settings } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { useAuth } from '@/app/context/AuthContext';
@@ -15,6 +15,7 @@ export function Navbar() {
   const { isAuthenticated, isAdmin } = useAuth();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const isDiscovery = location.pathname === '/discover';
   const isPublicPage = location.pathname === '/' || location.pathname === '/login';
   const isMatches = location.pathname === '/matches';
@@ -30,6 +31,8 @@ export function Navbar() {
       ? 'text-purple-300'
       : 'hover:text-purple-300 transition-colors';
   const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -187,11 +190,32 @@ export function Navbar() {
           )}
 
           {/* Mobile Menu Toggle */}
-          <button className="lg:hidden text-white hover:text-purple-300 transition-colors ml-2">
-            <Menu className="w-6 h-6" />
+          <button
+            className="lg:hidden text-white hover:text-purple-300 transition-colors ml-2"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setMobileOpen((o) => !o)}
+          >
+            {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
       </div>
+      {/* Mobile Drawer */}
+      {mobileOpen && isAuthenticated && (
+        <div className="lg:hidden fixed top-20 left-0 right-0 z-40 bg-[#2E1065]/95 backdrop-blur-md border-b border-white/10 text-white">
+          <div className="flex flex-col px-4 py-4 gap-1">
+            <button onClick={() => navigate('/discover')} className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors ${isDiscovery ? 'bg-white/10 text-purple-300' : 'hover:bg-white/10'}`}>Discover Athletes</button>
+            <button onClick={() => navigate('/matches')}  className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors ${isMatches  ? 'bg-white/10 text-purple-300' : 'hover:bg-white/10'}`}>Matches</button>
+            <button onClick={() => navigate('/messages')} className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors ${isMessages ? 'bg-white/10 text-purple-300' : 'hover:bg-white/10'}`}>Messages</button>
+            {isAdmin && (
+              <button onClick={() => navigate('/admin/home')} className="text-left px-4 py-3 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors">Admin</button>
+            )}
+            <div className="border-t border-white/10 mt-2 pt-2 flex flex-col gap-1">
+              <button onClick={() => navigate('/profile')}  className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors ${isProfile   ? 'bg-white/10 text-purple-300' : 'hover:bg-white/10'}`}>Profile</button>
+              <button onClick={() => navigate('/settings')} className={`text-left px-4 py-3 rounded-xl text-sm font-medium transition-colors ${isSettings  ? 'bg-white/10 text-purple-300' : 'hover:bg-white/10'}`}>Settings</button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
