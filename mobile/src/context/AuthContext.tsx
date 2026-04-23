@@ -69,6 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (!err.response) {
+        setError('Cannot reach the SportSync API. Reinstall the latest build or check your connection.');
+        return;
+      }
       setError(payload.error || 'Login failed. Please try again.');
     }
   }
