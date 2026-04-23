@@ -223,9 +223,7 @@ export function AdminReports() {
         statusName: selectedStatuses[id],
         note: internalNotes[id] || '',
         suspensionReason: suspensionReasons[id] || '',
-        suspendedUntil: suspensionUntilValues[id]
-          ? new Date(suspensionUntilValues[id]).toISOString()
-          : '',
+        suspendedUntil: suspensionUntilValues[id] || '',
       });
 
       await fetchReports();

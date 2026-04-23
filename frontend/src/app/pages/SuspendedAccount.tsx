@@ -29,11 +29,18 @@ function formatUntil(value?: string | null) {
     return 'until further notice';
   }
 
-  return date.toLocaleString(undefined, {
+  const formattedDateTime = date.toLocaleString(undefined, {
     dateStyle: 'long',
     timeStyle: 'short',
-    timeZoneName: 'short',
   });
+  const formattedZone = date
+    .toLocaleTimeString(undefined, {
+      timeZoneName: 'short',
+    })
+    .replace(date.toLocaleTimeString(undefined), '')
+    .trim();
+
+  return formattedZone ? `${formattedDateTime} ${formattedZone}` : formattedDateTime;
 }
 
 export function SuspendedAccount() {
