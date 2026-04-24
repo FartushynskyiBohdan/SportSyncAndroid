@@ -12,6 +12,14 @@ function parseMatchId(value) {
   return matchId;
 }
 
+function parseMessageId(value) {
+  const messageId = Number(value);
+  if (!Number.isInteger(messageId) || messageId <= 0) {
+    return null;
+  }
+  return messageId;
+}
+
 async function getMatchForUser(connection, matchId, userId) {
   const [rows] = await connection.execute(
     `SELECT match_id, user1_id, user2_id
@@ -199,6 +207,160 @@ router.get('/messages/:matchId', auth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ error: 'Failed to fetch messages.' });
+  }
+});
+
+// PUT /api/messages/:matchId/:messageId
+router.put('/messages/:matchId/:messageId', auth, async (req, res) => {
+  const userId = req.userId;
+  const matchId = parseMatchId(req.params.matchId);
+  const messageId = parseMessageId(req.params.messageId);
+  const text = String(req.body?.text || '').trim();
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (!matchId || !messageId) {
+    return res.status(400).json({ error: 'Invalid message reference.' });
+  }
+  if (!text) {
+    return res.status(400).json({ error: 'Message text is required.' });
+  }
+  if (text.length > 2000) {
+    return res.status(400).json({ error: 'Message is too long (max 2000 chars).' });
+  }
+
+  try {
+    const match = await getMatchForUser(db, matchId, userId);
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+
+    const [result] = await db.execute(
+      `UPDATE messages
+       SET message_text = ?
+       WHERE message_id = ? AND match_id = ? AND sender_id = ?`,
+      [text, messageId, matchId, userId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Message not found or cannot be edited.' });
+    }
+
+    const [rows] = await db.execute(
+      `SELECT message_id, sender_id, message_text, sent_at, read_at
+       FROM messages
+       WHERE message_id = ?`,
+      [messageId]
+    );
+
+    const message = rows[0];
+    res.json({
+      id: message.message_id,
+      senderId: message.sender_id,
+      text: message.message_text,
+      sentAt: message.sent_at,
+      readAt: message.read_at,
+    });
+  } catch (error) {
+    console.error('Error editing message:', error);
+    res.status(500).json({ error: 'Failed to edit message.' });
+  }
+});
+
+// DELETE /api/messages/:matchId/:messageId
+router.delete('/messages/:matchId/:messageId', auth, async (req, res) => {
+  const userId = req.userId;
+  const matchId = parseMatchId(req.params.matchId);
+  const messageId = parseMessageId(req.params.messageId);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (!matchId || !messageId) {
+    return res.status(400).json({ error: 'Invalid message reference.' });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const match = await getMatchForUser(connection, matchId, userId);
+    if (!match) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+
+    const [ownedRows] = await connection.execute(
+      `SELECT message_id
+       FROM messages
+       WHERE message_id = ? AND match_id = ? AND sender_id = ?`,
+      [messageId, matchId, userId]
+    );
+
+    if (ownedRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Message not found or cannot be deleted.' });
+    }
+
+    await connection.execute('DELETE FROM notifications WHERE message_id = ?', [messageId]);
+    await connection.execute('DELETE FROM messages WHERE message_id = ?', [messageId]);
+
+    await connection.commit();
+    res.json({ ok: true });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error deleting message:', error);
+    res.status(500).json({ error: 'Failed to delete message.' });
+  } finally {
+    connection.release();
+  }
+});
+
+// DELETE /api/messages/:matchId
+router.delete('/messages/:matchId', auth, async (req, res) => {
+  const userId = req.userId;
+  const matchId = parseMatchId(req.params.matchId);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+  if (!matchId) {
+    return res.status(400).json({ error: 'Invalid match id.' });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const match = await getMatchForUser(connection, matchId, userId);
+    if (!match) {
+      await connection.rollback();
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+
+    const [messageRows] = await connection.execute(
+      'SELECT message_id FROM messages WHERE match_id = ?',
+      [matchId]
+    );
+    const messageIds = messageRows.map((row) => row.message_id);
+
+    if (messageIds.length > 0) {
+      await connection.execute(
+        `DELETE FROM notifications WHERE message_id IN (${messageIds.map(() => '?').join(', ')})`,
+        messageIds
+      );
+      await connection.execute('DELETE FROM messages WHERE match_id = ?', [matchId]);
+    }
+
+    await connection.commit();
+    res.json({ ok: true, deleted: messageIds.length });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error clearing conversation:', error);
+    res.status(500).json({ error: 'Failed to clear conversation.' });
+  } finally {
+    connection.release();
   }
 });
 

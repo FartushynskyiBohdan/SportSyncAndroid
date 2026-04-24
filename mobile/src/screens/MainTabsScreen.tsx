@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DiscoverScreen } from './tabs/DiscoverScreen';
 import { MatchesScreen } from './tabs/MatchesScreen';
 import { MessagesScreen } from './tabs/MessagesScreen';
@@ -14,18 +14,26 @@ import { palette } from '../theme/palette';
 
 type TabKey = 'discover' | 'matches' | 'messages' | 'profile' | 'settings' | 'admin';
 
-// Unicode symbols that render on both iOS and Android without any icon library
-const TAB_ICONS: Record<TabKey, { inactive: string; active: string }> = {
-  discover:  { inactive: '🧭', active: '🧭' },
-  matches:   { inactive: '⚡', active: '⚡' },
-  messages:  { inactive: '💬', active: '💬' },
-  profile:   { inactive: '👤', active: '👤' },
-  settings:  { inactive: '⚙️', active: '⚙️' },
-  admin:     { inactive: '🛡️', active: '🛡️' },
+const TAB_ICONS: Record<TabKey, string> = {
+  discover: '\u{1f9ed}',
+  matches: '\u26a1',
+  messages: '\u{1f4ac}',
+  profile: '\u{1f464}',
+  settings: '\u2699',
+  admin: '\u{1f6e1}',
 };
 
 export function MainTabsScreen() {
   const { user } = useAuth();
+
+  if (user?.role === 'admin') {
+    return <AdminOnlyScreen />;
+  }
+
+  return <UserTabsScreen />;
+}
+
+function UserTabsScreen() {
   const [activeTab, setActiveTab] = useState<TabKey>('discover');
   const [viewingUserId, setViewingUserId] = useState<number | null>(null);
   const [showDiscoverySettings, setShowDiscoverySettings] = useState(false);
@@ -33,19 +41,16 @@ export function MainTabsScreen() {
   const [messagesToMatchId, setMessagesToMatchId] = useState<number | null>(null);
 
   const tabs = useMemo(() => {
-    const base: Array<{ key: TabKey; label: string }> = [
+    return [
       { key: 'discover', label: 'Discover' },
-      { key: 'matches',  label: 'Matches'  },
+      { key: 'matches', label: 'Matches' },
       { key: 'messages', label: 'Messages' },
-      { key: 'profile',  label: 'Profile'  },
+      { key: 'profile', label: 'Profile' },
       { key: 'settings', label: 'Settings' },
-    ];
-    if (user?.role === 'admin') base.push({ key: 'admin', label: 'Admin' });
-    return base;
-  }, [user?.role]);
+    ] satisfies Array<{ key: TabKey; label: string }>;
+  }, []);
 
   const content = useMemo(() => {
-    // If viewing a user profile, show that instead
     if (viewingUserId !== null) {
       return (
         <UserProfileScreen
@@ -76,14 +81,50 @@ export function MainTabsScreen() {
         />
       );
     }
-    if (activeTab === 'matches')  return <MatchesScreen onOpenMessages={(matchId) => { setMessagesToMatchId(matchId); setActiveTab('messages'); }} onViewUser={setViewingUserId} />;
-    if (activeTab === 'messages') return <MessagesScreen initialMatchId={messagesToMatchId ?? undefined} />;
-    if (activeTab === 'profile') {
-      return <ProfileScreen onEditProfile={() => setShowProfileEditor(true)} />;
+
+    if (activeTab === 'matches') {
+      return (
+        <MatchesScreen
+          onOpenMessages={(matchId) => {
+            setMessagesToMatchId(matchId);
+            setActiveTab('messages');
+          }}
+          onViewUser={setViewingUserId}
+        />
+      );
     }
-    if (activeTab === 'admin')    return <AdminScreen />;
-    return <SettingsScreen />;
-  }, [activeTab, showDiscoverySettings, showProfileEditor, viewingUserId]);
+
+    if (activeTab === 'messages') {
+      return <MessagesScreen initialMatchId={messagesToMatchId ?? undefined} />;
+    }
+
+    if (activeTab === 'profile') {
+      return (
+        <ProfileScreen
+          onEditProfile={() => setShowProfileEditor(true)}
+          onOpenSettings={() => setActiveTab('settings')}
+        />
+      );
+    }
+
+    if (activeTab === 'settings') {
+      return <SettingsScreen />;
+    }
+
+    if (activeTab === 'admin') {
+      return <AdminScreen />;
+    }
+
+    return null;
+  }, [activeTab, messagesToMatchId, showDiscoverySettings, showProfileEditor, viewingUserId]);
+
+  function openTab(tabKey: TabKey) {
+    setShowDiscoverySettings(false);
+    setShowProfileEditor(false);
+    setViewingUserId(null);
+    setMessagesToMatchId(null);
+    setActiveTab(tabKey);
+  }
 
   return (
     <SafeAreaView style={styles.root}>
@@ -92,27 +133,50 @@ export function MainTabsScreen() {
       <View style={styles.tabBar}>
         {tabs.map((tab) => {
           const active = tab.key === activeTab;
-          const icons = TAB_ICONS[tab.key];
+
           return (
             <Pressable
               key={tab.key}
               style={styles.tabButton}
-              onPress={() => {
-                setShowDiscoverySettings(false);
-                setShowProfileEditor(false);
-                setViewingUserId(null);
-                // Clear deep-link when tapping a tab directly
-                setMessagesToMatchId(null);
-                setActiveTab(tab.key);
-              }}
+              onPress={() => openTab(tab.key)}
               android_ripple={{ color: '#ffffff18', borderless: true }}
             >
               {active && <View style={styles.activePill} />}
-              <Text style={styles.tabEmoji}>{active ? icons.active : icons.inactive}</Text>
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
+              <Text style={styles.tabEmoji}>{TAB_ICONS[tab.key]}</Text>
+              <Text style={[styles.tabLabel, active && styles.tabLabelActive]} numberOfLines={1}>
+                {tab.label}
+              </Text>
             </Pressable>
           );
         })}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+function AdminOnlyScreen() {
+  const { logout } = useAuth();
+
+  function confirmLogout() {
+    Alert.alert('Log out?', 'You can sign back in to the admin dashboard at any time.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Log Out', style: 'destructive', onPress: () => void logout() },
+    ]);
+  }
+
+  return (
+    <SafeAreaView style={styles.root}>
+      <View style={styles.adminHeader}>
+        <View>
+          <Text style={styles.adminEyebrow}>ADMIN MODE</Text>
+          <Text style={styles.adminTitle}>Dashboard only</Text>
+        </View>
+        <Pressable style={styles.adminLogoutButton} onPress={confirmLogout}>
+          <Text style={styles.adminLogoutText}>Log Out</Text>
+        </Pressable>
+      </View>
+      <View style={styles.content}>
+        <AdminScreen />
       </View>
     </SafeAreaView>
   );
@@ -125,6 +189,42 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  adminHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1d2a52',
+    backgroundColor: '#080d22',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  adminEyebrow: {
+    color: palette.accentSoft,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1.7,
+  },
+  adminTitle: {
+    color: palette.text,
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  adminLogoutButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#7f2534',
+    backgroundColor: '#3a1220',
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  adminLogoutText: {
+    color: '#fecdd3',
+    fontSize: 12,
+    fontWeight: '900',
   },
   tabBar: {
     borderTopWidth: 1,
@@ -152,14 +252,14 @@ const styles = StyleSheet.create({
     backgroundColor: palette.accent,
   },
   tabEmoji: {
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 21,
+    lineHeight: 25,
   },
   tabLabel: {
     color: '#566090',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600',
-    letterSpacing: 0.3,
+    letterSpacing: 0.1,
   },
   tabLabelActive: {
     color: '#c4d0ff',

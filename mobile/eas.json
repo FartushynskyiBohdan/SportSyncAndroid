@@ -16,7 +16,17 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://10.0.2.2:3000"
+        "EXPO_PUBLIC_API_URL": "https://apisportsync.xyz"
+      }
+    },
+    "submission": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://apisportsync.xyz",
+        "EXPO_PUBLIC_DEMO_MODE": "true"
       }
     },
     "production": {

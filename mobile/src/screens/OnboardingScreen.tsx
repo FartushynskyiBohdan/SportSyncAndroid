@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,7 +9,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import {
+  deleteProfilePhoto,
   getCities,
   getCountries,
   getFrequencies,
@@ -21,9 +24,12 @@ import {
   saveOnboardingPreferences,
   saveOnboardingProfile,
   saveOnboardingSports,
+  uploadProfilePhotos,
 } from '../api/appApi';
+import { RemoteImage } from '../components/RemoteImage';
+import { SearchableOptionSelect } from '../components/SearchableOptionSelect';
 import { useAuth } from '../context/AuthContext';
-import { OnboardingSportInput, OptionItem } from '../types/app';
+import { OnboardingSportInput, OptionItem, ProfileEditPhoto } from '../types/app';
 import { palette } from '../theme/palette';
 
 export function OnboardingScreen() {
@@ -31,6 +37,7 @@ export function OnboardingScreen() {
 
   const [loadingLists, setLoadingLists] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [savingPhotos, setSavingPhotos] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -46,6 +53,7 @@ export function OnboardingScreen() {
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('2000-01-01');
   const [bio, setBio] = useState('');
+  const [photos, setPhotos] = useState<ProfileEditPhoto[]>([]);
 
   const [myGenderId, setMyGenderId] = useState<number | null>(null);
   const [countryId, setCountryId] = useState<number | null>(null);
@@ -137,6 +145,8 @@ export function OnboardingScreen() {
       lastName.trim() &&
       birthDate.trim() &&
       bio.trim() &&
+      photos.length > 0 &&
+      !savingPhotos &&
       myGenderId &&
       cityId &&
       prefGenderId &&
@@ -151,6 +161,8 @@ export function OnboardingScreen() {
     lastName,
     birthDate,
     bio,
+    photos.length,
+    savingPhotos,
     myGenderId,
     cityId,
     prefGenderId,
@@ -167,6 +179,73 @@ export function OnboardingScreen() {
       if (prev.length >= 5) return prev;
       return [...prev, sportId];
     });
+  }
+
+  async function pickPhotos() {
+    if (photos.length >= 6) {
+      Alert.alert('Limit reached', 'You can upload up to 6 photos.');
+      return;
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to upload profile photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: 6 - photos.length,
+      quality: 0.85,
+    });
+
+    if (result.canceled || !result.assets?.length) {
+      return;
+    }
+
+    setSavingPhotos(true);
+    setError('');
+    try {
+      const uploaded = await uploadProfilePhotos(
+        result.assets.map((asset, index) => ({
+          uri: asset.uri,
+          name: asset.fileName ?? `onboarding-${Date.now()}-${index}.jpg`,
+          type: asset.mimeType ?? 'image/jpeg',
+        }))
+      );
+
+      setPhotos((prev) =>
+        [...prev, ...uploaded]
+          .sort((a, b) => a.display_order - b.display_order)
+          .slice(0, 6)
+      );
+    } catch (err: any) {
+      Alert.alert('Upload failed', err?.response?.data?.error || 'Failed to upload profile photos.');
+    } finally {
+      setSavingPhotos(false);
+    }
+  }
+
+  function removePhoto(photoId: number) {
+    Alert.alert('Remove photo?', 'This photo will be removed from your profile.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          setSavingPhotos(true);
+          try {
+            await deleteProfilePhoto(photoId);
+            setPhotos((prev) => prev.filter((photo) => photo.photo_id !== photoId));
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to remove photo.');
+          } finally {
+            setSavingPhotos(false);
+          }
+        },
+      },
+    ]);
   }
 
   async function onSubmit() {
@@ -228,7 +307,7 @@ export function OnboardingScreen() {
     <ScrollView contentContainerStyle={styles.root}>
       <Text style={styles.badge}>WELCOME TO SPORTSYNC</Text>
       <Text style={styles.title}>Complete your athlete profile</Text>
-      <Text style={styles.subtitle}>User #{user?.id} · This unlocks discover and messaging.</Text>
+      <Text style={styles.subtitle}>User #{user?.id} - This unlocks discover and messaging.</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {notice ? <Text style={styles.notice}>{notice}</Text> : null}
@@ -242,10 +321,67 @@ export function OnboardingScreen() {
       </Card>
 
       <Card title="Location">
-        <Text style={styles.label}>Country</Text>
-        <OptionWrap options={countries} selectedId={countryId} onSelect={setCountryId} />
-        <Text style={styles.label}>City</Text>
-        <OptionWrap options={cities} selectedId={cityId} onSelect={setCityId} />
+        <SearchableOptionSelect
+          label="Country"
+          value={countryId}
+          options={countries}
+          onChange={(id) => {
+            setCityId(null);
+            setCountryId(id);
+          }}
+          helperText="Search instead of scrolling through the whole database."
+        />
+        <SearchableOptionSelect
+          label="City"
+          value={cityId}
+          options={cities}
+          onChange={setCityId}
+          disabled={!countryId || cities.length === 0}
+          placeholder={countryId ? 'Choose your city' : 'Pick a country first'}
+        />
+      </Card>
+
+      <Card title="Profile photos">
+        <Text style={styles.photoHelp}>
+          Add at least one clear profile photo. Your first photo becomes the main card image.
+        </Text>
+        {photos.length > 0 ? (
+          <View style={styles.photoGrid}>
+            {photos.map((photo, index) => (
+              <View key={photo.photo_id} style={styles.photoCard}>
+                <RemoteImage
+                  uri={photo.photo_url}
+                  style={styles.photoThumb}
+                  fallbackStyle={styles.photoThumb}
+                  fallbackLabel="Photo"
+                />
+                {index === 0 ? (
+                  <View style={styles.primaryPhotoBadge}>
+                    <Text style={styles.primaryPhotoBadgeText}>Main</Text>
+                  </View>
+                ) : null}
+                <Pressable style={styles.removePhotoButton} onPress={() => removePhoto(photo.photo_id)}>
+                  <Text style={styles.removePhotoText}>Remove</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Pressable style={styles.emptyPhotoDropzone} onPress={pickPhotos}>
+            <Text style={styles.emptyPhotoIcon}>+</Text>
+            <Text style={styles.emptyPhotoTitle}>Upload profile photo</Text>
+            <Text style={styles.emptyPhotoCopy}>This fixes blank cards and makes Discover feel like the web app.</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.photoUploadButton, (savingPhotos || photos.length >= 6) && styles.photoUploadButtonDisabled]}
+          onPress={pickPhotos}
+          disabled={savingPhotos || photos.length >= 6}
+        >
+          <Text style={styles.photoUploadButtonText}>
+            {savingPhotos ? 'Uploading...' : photos.length === 0 ? 'Choose Photo' : 'Add More Photos'}
+          </Text>
+        </Pressable>
       </Card>
 
       <Card title="Your athlete baseline">
@@ -454,6 +590,101 @@ const styles = StyleSheet.create({
   inputMultiline: {
     minHeight: 90,
     textAlignVertical: 'top',
+  },
+  photoHelp: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  photoCard: {
+    width: '48%',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#2b3f72',
+    backgroundColor: '#101936',
+    padding: 8,
+    gap: 8,
+    position: 'relative',
+  },
+  photoThumb: {
+    width: '100%',
+    aspectRatio: 0.78,
+    borderRadius: 12,
+    backgroundColor: '#0b1026',
+  },
+  primaryPhotoBadge: {
+    position: 'absolute',
+    left: 14,
+    top: 14,
+    borderRadius: 999,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  primaryPhotoBadgeText: {
+    color: '#08112d',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  removePhotoButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#7f2534',
+    backgroundColor: '#3a1220',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  removePhotoText: {
+    color: '#fecdd3',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  emptyPhotoDropzone: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#4a63a1',
+    backgroundColor: '#0f1734',
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    gap: 6,
+  },
+  emptyPhotoIcon: {
+    color: palette.accentSoft,
+    fontSize: 34,
+    fontWeight: '300',
+    lineHeight: 36,
+  },
+  emptyPhotoTitle: {
+    color: palette.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  emptyPhotoCopy: {
+    color: palette.textMuted,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  photoUploadButton: {
+    borderRadius: 14,
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  photoUploadButtonDisabled: {
+    opacity: 0.5,
+  },
+  photoUploadButtonText: {
+    color: '#091128',
+    fontSize: 14,
+    fontWeight: '900',
   },
   optionWrap: {
     flexDirection: 'row',

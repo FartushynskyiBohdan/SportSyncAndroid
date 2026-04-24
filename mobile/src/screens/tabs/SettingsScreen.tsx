@@ -1,188 +1,271 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { getAccountSettings, getCities, getCountries, getGenders, updateAccountSettings, updatePassword, getBlockedUsers, unblockUser, deleteAccount } from '../../api/appApi';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import {
+  deleteAccount,
+  getAccountSettings,
+  getBlockedUsers,
+  getCities,
+  getCountries,
+  getGenders,
+  unblockUser,
+  updateAccountSettings,
+  updatePassword,
+} from '../../api/appApi';
+import { SearchableOptionSelect } from '../../components/SearchableOptionSelect';
 import { useAuth } from '../../context/AuthContext';
-import { AccountSettings, OptionItem } from '../../types/app';
+import { AccountSettings, BlockedUser, OptionItem } from '../../types/app';
 import { palette } from '../../theme/palette';
 
 type Section = 'account' | 'password' | 'blocked' | 'delete';
 
-export function SettingsScreen() {
+const sectionLabels: Record<Section, string> = {
+  account: 'Account',
+  password: 'Password',
+  blocked: 'Blocked',
+  delete: 'Delete',
+};
+
+export function SettingsScreen({ onGoBack }: { onGoBack?: () => void }) {
   const { logout } = useAuth();
   const [settings, setSettings] = useState<AccountSettings | null>(null);
   const [genders, setGenders] = useState<OptionItem[]>([]);
   const [countries, setCountries] = useState<OptionItem[]>([]);
   const [cities, setCities] = useState<OptionItem[]>([]);
-  const [blockedUsers, setBlockedUsers] = useState<any[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeSection, setActiveSection] = useState<Section>('account');
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const [s, g, c] = await Promise.all([
-          getAccountSettings(),
-          getGenders(),
-          getCountries(),
-        ]);
-        setSettings(s);
-        setGenders(g);
-        setCountries(c);
-        if (s.country_id) {
-          const citiesData = await getCities(s.country_id);
-          setCities(citiesData);
-        }
-      } catch (err: any) {
-        setError(err?.response?.data?.error || 'Failed to load settings.');
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  const loadBlockedUsers = async () => {
+  async function loadSettings() {
+    setLoading(true);
+    setError('');
     try {
-      const blocked = await getBlockedUsers();
-      setBlockedUsers(blocked);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to load blocked users.');
+      const [account, genderList, countryList] = await Promise.all([
+        getAccountSettings(),
+        getGenders(),
+        getCountries(),
+      ]);
+
+      setSettings(account);
+      setGenders(genderList);
+      setCountries(countryList);
+
+      if (account.country_id) {
+        setCities(await getCities(account.country_id));
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.error || 'Failed to load settings.');
+    } finally {
+      setLoading(false);
     }
-  };
+  }
+
+  async function loadBlockedUsers() {
+    try {
+      setBlockedUsers(await getBlockedUsers());
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.error || 'Failed to load blocked users.');
+    }
+  }
+
+  useEffect(() => {
+    void loadSettings();
+  }, []);
 
   if (loading) {
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={palette.accent} size="large" />
+        <Text style={styles.loadingText}>Loading account controls...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView contentContainerStyle={styles.root} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>Settings</Text>
-      <Text style={styles.subtitle}>Manage your account and privacy.</Text>
+      {onGoBack ? (
+        <Pressable style={styles.backButton} onPress={onGoBack}>
+          <Text style={styles.backButtonText}>Back to profile</Text>
+        </Pressable>
+      ) : null}
+
+      <View style={styles.headerCard}>
+        <Text style={styles.eyebrow}>ACCOUNT CONTROL</Text>
+        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.subtitle}>Update location, privacy, security, and account access.</Text>
+      </View>
 
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      {/* Section tabs */}
-      <View style={styles.tabs}>
-        {(['account', 'password', 'blocked', 'delete'] as Section[]).map(section => (
+      <View style={styles.sectionTabs}>
+        {(Object.keys(sectionLabels) as Section[]).map((section) => (
           <Pressable
             key={section}
-            style={[styles.tab, activeSection === section && styles.tabActive]}
+            style={[styles.sectionTab, activeSection === section && styles.sectionTabActive]}
             onPress={() => {
               setActiveSection(section);
-              if (section === 'blocked' && blockedUsers.length === 0) {
-                loadBlockedUsers();
-              }
+              if (section === 'blocked') void loadBlockedUsers();
             }}
           >
-            <Text style={[styles.tabText, activeSection === section && styles.tabTextActive]}>
-              {section === 'account' ? '👤 Account' : section === 'password' ? '🔐 Password' : section === 'blocked' ? '🚫 Blocked' : '⛔ Delete'}
+            <Text style={[styles.sectionTabText, activeSection === section && styles.sectionTabTextActive]}>
+              {sectionLabels[section]}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      {/* Account section */}
-      {activeSection === 'account' && settings && (
-        <AccountEditForm settings={settings} genders={genders} countries={countries} cities={cities} setCities={setCities} />
-      )}
+      {activeSection === 'account' && settings ? (
+        <AccountEditForm
+          settings={settings}
+          genders={genders}
+          countries={countries}
+          cities={cities}
+          setCities={setCities}
+          onSaved={setSettings}
+        />
+      ) : null}
 
-      {/* Password section */}
-      {activeSection === 'password' && (
-        <PasswordChangeForm />
-      )}
+      {activeSection === 'password' ? <PasswordChangeForm /> : null}
 
-      {/* Blocked users section */}
-      {activeSection === 'blocked' && (
-        <BlockedUsersList users={blockedUsers} onUnblock={() => loadBlockedUsers()} />
-      )}
+      {activeSection === 'blocked' ? (
+        <BlockedUsersList users={blockedUsers} onReload={() => void loadBlockedUsers()} />
+      ) : null}
 
-      {/* Delete account section */}
-      {activeSection === 'delete' && (
-        <DeleteAccountForm />
-      )}
+      {activeSection === 'delete' ? <DeleteAccountForm /> : null}
 
-      {/* Logout */}
-      <Pressable style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutButtonText}>🚪 Log Out</Text>
+      <Pressable
+        style={styles.logoutButton}
+        onPress={() => {
+          Alert.alert('Log out?', 'You can sign back in at any time.', [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Log Out', style: 'destructive', onPress: () => void logout() },
+          ]);
+        }}
+      >
+        <Text style={styles.logoutButtonText}>Log Out</Text>
       </Pressable>
-
-      <View style={{ height: 30 }} />
     </ScrollView>
   );
 }
 
-function AccountEditForm({ settings, genders, countries, cities, setCities }: any) {
+function AccountEditForm({
+  settings,
+  genders,
+  countries,
+  cities,
+  setCities,
+  onSaved,
+}: {
+  settings: AccountSettings;
+  genders: OptionItem[];
+  countries: OptionItem[];
+  cities: OptionItem[];
+  setCities: (cities: OptionItem[]) => void;
+  onSaved: (settings: AccountSettings) => void;
+}) {
   const [email, setEmail] = useState(settings.email);
   const [firstName, setFirstName] = useState(settings.first_name || '');
   const [lastName, setLastName] = useState(settings.last_name || '');
   const [birthDate, setBirthDate] = useState(settings.birth_date || '');
-  const [genderId, setGenderId] = useState(String(settings.gender_id));
-  const [countryId, setCountryId] = useState(String(settings.country_id));
-  const [cityId, setCityId] = useState(String(settings.city_id));
+  const [genderId, setGenderId] = useState<number | null>(settings.gender_id || null);
+  const [countryId, setCountryId] = useState<number | null>(settings.country_id || null);
+  const [cityId, setCityId] = useState<number | null>(settings.city_id || null);
   const [password, setPassword] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const handleCountryChange = async (newCountryId: string) => {
-    setCountryId(newCountryId);
-    if (newCountryId) {
-      try {
-        const citiesData = await getCities(Number(newCountryId));
-        setCities(citiesData);
-        setCityId('');
-      } catch (err) {
-        Alert.alert('Error', 'Failed to load cities.');
-      }
-    }
-  };
+  async function handleCountryChange(nextCountryId: number) {
+    setCountryId(nextCountryId);
+    setCityId(null);
 
-  const handleSave = async () => {
+    try {
+      const nextCities = await getCities(nextCountryId);
+      setCities(nextCities);
+      if (nextCities[0]) {
+        setCityId(nextCities[0].id);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', err?.response?.data?.error || 'Failed to load cities.');
+    }
+  }
+
+  async function handleSave() {
     if (!password) {
-      Alert.alert('Error', 'Password is required to update account.');
+      Alert.alert('Password required', 'Enter your current password to save account changes.');
       return;
     }
+
+    if (!email.trim() || !firstName.trim() || !lastName.trim() || !birthDate.trim() || !genderId || !cityId) {
+      Alert.alert('Missing details', 'Fill in email, name, birth date, gender, country, and city.');
+      return;
+    }
+
     setSaving(true);
     try {
-      await updateAccountSettings({
-        email,
-        first_name: firstName,
-        last_name: lastName,
-        birth_date: birthDate,
-        gender_id: Number(genderId),
-        city_id: Number(cityId),
+      const response = await updateAccountSettings({
+        email: email.trim(),
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        birth_date: birthDate.trim(),
+        gender_id: genderId,
+        city_id: cityId,
         current_password: password,
       });
-      Alert.alert('Success', 'Account updated.');
+
+      if (response?.account) {
+        onSaved(response.account);
+      }
+
       setPassword('');
+      Alert.alert('Saved', 'Account and location updated.');
     } catch (err: any) {
       Alert.alert('Error', err?.response?.data?.error || 'Failed to update account.');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Account Information</Text>
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Account Information</Text>
+      <Text style={styles.cardCopy}>This is where you change your public location and basic account details.</Text>
 
-      <Input label="Email" value={email} onChangeText={setEmail} />
-      <Input label="First Name" value={firstName} onChangeText={setFirstName} />
-      <Input label="Last Name" value={lastName} onChangeText={setLastName} />
-      <Input label="Birth Date (YYYY-MM-DD)" value={birthDate} onChangeText={setBirthDate} />
+      <Input label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
+      <View style={styles.twoColumn}>
+        <Input label="First name" value={firstName} onChangeText={setFirstName} />
+        <Input label="Last name" value={lastName} onChangeText={setLastName} />
+      </View>
+      <Input label="Birth date (YYYY-MM-DD)" value={birthDate} onChangeText={setBirthDate} />
 
-      <Select label="Gender" value={genderId} options={genders} onChange={setGenderId} />
-      <Select label="Country" value={countryId} options={countries} onChange={handleCountryChange} />
-      {cities.length > 0 && <Select label="City" value={cityId} options={cities} onChange={setCityId} />}
+      <SearchableOptionSelect label="Gender" value={genderId} options={genders} onChange={setGenderId} />
+      <SearchableOptionSelect
+        label="Country"
+        value={countryId}
+        options={countries}
+        onChange={handleCountryChange}
+        helperText="Use search rather than scrolling through every country."
+      />
+      <SearchableOptionSelect
+        label="City / location"
+        value={cityId}
+        options={cities}
+        onChange={setCityId}
+        disabled={!countryId || cities.length === 0}
+        placeholder={countryId ? 'Choose your city' : 'Pick a country first'}
+      />
 
-      <Input label="Current Password" value={password} onChangeText={setPassword} secureTextEntry />
+      <Input label="Current password required to save" value={password} onChangeText={setPassword} secureTextEntry />
 
-      <Pressable style={[styles.button, saving && styles.buttonDisabled]} onPress={handleSave} disabled={saving}>
-        <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
+      <Pressable style={[styles.primaryButton, saving && styles.disabled]} onPress={handleSave} disabled={saving}>
+        <Text style={styles.primaryButtonText}>{saving ? 'Saving...' : 'Save Account Changes'}</Text>
       </Pressable>
     </View>
   );
@@ -194,17 +277,17 @@ function PasswordChangeForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const handleChange = async () => {
+  async function handleChange() {
     if (!currentPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Error', 'All fields are required.');
+      Alert.alert('Missing details', 'All password fields are required.');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Error', 'New passwords do not match.');
+      Alert.alert('Mismatch', 'New passwords do not match.');
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('Error', 'New password must be at least 8 characters.');
+      Alert.alert('Too short', 'New password must be at least 8 characters.');
       return;
     }
 
@@ -214,7 +297,7 @@ function PasswordChangeForm() {
         current_password: currentPassword,
         new_password: newPassword,
       });
-      Alert.alert('Success', 'Password changed.');
+      Alert.alert('Saved', 'Password changed.');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -223,77 +306,66 @@ function PasswordChangeForm() {
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Change Password</Text>
-
-      <Input label="Current Password" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
-      <Input label="New Password" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
-      <Input label="Confirm New Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-
-      <Pressable style={[styles.button, saving && styles.buttonDisabled]} onPress={handleChange} disabled={saving}>
-        <Text style={styles.buttonText}>{saving ? 'Updating...' : 'Change Password'}</Text>
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Change Password</Text>
+      <Input label="Current password" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry />
+      <Input label="New password" value={newPassword} onChangeText={setNewPassword} secureTextEntry />
+      <Input label="Confirm new password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+      <Pressable style={[styles.primaryButton, saving && styles.disabled]} onPress={handleChange} disabled={saving}>
+        <Text style={styles.primaryButtonText}>{saving ? 'Updating...' : 'Change Password'}</Text>
       </Pressable>
     </View>
   );
 }
 
-function BlockedUsersList({ users, onUnblock }: { users: any[]; onUnblock: () => void }) {
+function BlockedUsersList({ users, onReload }: { users: BlockedUser[]; onReload: () => void }) {
   const [unblocking, setUnblocking] = useState<number | null>(null);
 
-  const handleUnblock = async (userId: number) => {
-    Alert.alert(
-      'Unblock User?',
-      'They will be able to see your profile and contact you again.',
-      [
-        { text: 'Cancel' },
-        {
-          text: 'Unblock',
-          onPress: async () => {
-            setUnblocking(userId);
-            try {
-              await unblockUser(userId);
-              onUnblock();
-            } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.error || 'Failed to unblock user.');
-            } finally {
-              setUnblocking(null);
-            }
-          },
+  function handleUnblock(userId: number) {
+    Alert.alert('Unblock user?', 'They will be able to see your profile and contact you again.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Unblock',
+        onPress: async () => {
+          setUnblocking(userId);
+          try {
+            await unblockUser(userId);
+            onReload();
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to unblock user.');
+          } finally {
+            setUnblocking(null);
+          }
         },
-      ]
-    );
-  };
-
-  if (users.length === 0) {
-    return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Blocked Users</Text>
-        <Text style={styles.emptyText}>You haven't blocked anyone yet.</Text>
-      </View>
-    );
+      },
+    ]);
   }
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Blocked Users</Text>
-      {users.map(user => (
-        <View key={user.userId} style={styles.blockedUserRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.blockedUserName}>{user.name}</Text>
-            <Text style={styles.blockedUserMeta}>{user.city}, {user.country}</Text>
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Blocked Users</Text>
+      {users.length === 0 ? (
+        <Text style={styles.emptyText}>You have not blocked anyone yet.</Text>
+      ) : (
+        users.map((user) => (
+          <View key={user.userId} style={styles.blockedUserRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockedUserName}>{user.name}</Text>
+              <Text style={styles.blockedUserMeta}>{user.city}, {user.country}</Text>
+            </View>
+            <Pressable
+              style={[styles.smallButton, unblocking === user.userId && styles.disabled]}
+              onPress={() => handleUnblock(user.userId)}
+              disabled={unblocking === user.userId}
+            >
+              <Text style={styles.smallButtonText}>{unblocking === user.userId ? 'Working...' : 'Unblock'}</Text>
+            </Pressable>
           </View>
-          <Pressable
-            style={[styles.smallButton, unblocking === user.userId && styles.buttonDisabled]}
-            onPress={() => handleUnblock(user.userId)}
-            disabled={unblocking === user.userId}
-          >
-            <Text style={styles.smallButtonText}>Unblock</Text>
-          </Pressable>
-        </View>
-      ))}
+        ))
+      )}
     </View>
   );
 }
@@ -304,58 +376,66 @@ function DeleteAccountForm() {
   const [confirm, setConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const handleDelete = async () => {
+  function handleDelete() {
     if (!password) {
-      Alert.alert('Error', 'Password is required.');
+      Alert.alert('Password required', 'Enter your password first.');
       return;
     }
     if (!confirm) {
-      Alert.alert('Error', 'Please confirm account deletion.');
+      Alert.alert('Confirm deletion', 'Tick the confirmation before deleting your account.');
       return;
     }
 
-    Alert.alert(
-      'Delete Account?',
-      'This cannot be undone. All your data will be permanently removed.',
-      [
-        { text: 'Cancel' },
-        {
-          text: 'Delete',
-          onPress: async () => {
-            setDeleting(true);
-            try {
-              await deleteAccount(password);
-              Alert.alert('Success', 'Account deleted.', [{ text: 'OK', onPress: () => logout() }]);
-            } catch (err: any) {
-              Alert.alert('Error', err?.response?.data?.error || 'Failed to delete account.');
-              setDeleting(false);
-            }
-          },
+    Alert.alert('Delete account?', 'This cannot be undone. Your profile, photos, matches, and messages will be removed.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setDeleting(true);
+          try {
+            await deleteAccount(password);
+            Alert.alert('Deleted', 'Account deleted.', [{ text: 'OK', onPress: () => void logout() }]);
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to delete account.');
+            setDeleting(false);
+          }
         },
-      ]
-    );
-  };
+      },
+    ]);
+  }
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>Delete Account</Text>
-      <Text style={styles.warningText}>⚠️ This action is permanent. All your data, photos, and matches will be deleted.</Text>
-
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>Delete Account</Text>
+      <Text style={styles.warningText}>Permanent action. All your data, photos, matches, and messages will be deleted.</Text>
       <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry />
-
-      <Pressable style={styles.checkboxRow} onPress={() => setConfirm(!confirm)}>
-        <Text style={styles.checkbox}>{confirm ? '☑️' : '☐'}</Text>
-        <Text style={styles.checkboxLabel}>I understand my account will be permanently deleted</Text>
+      <Pressable style={styles.checkboxRow} onPress={() => setConfirm((value) => !value)}>
+        <View style={[styles.checkboxBox, confirm && styles.checkboxBoxChecked]} />
+        <Text style={styles.checkboxLabel}>I understand my account will be permanently deleted.</Text>
       </Pressable>
-
-      <Pressable style={[styles.deleteButton, (!confirm || deleting) && styles.buttonDisabled]} onPress={handleDelete} disabled={!confirm || deleting}>
+      <Pressable style={[styles.deleteButton, (!confirm || deleting) && styles.disabled]} onPress={handleDelete} disabled={!confirm || deleting}>
         <Text style={styles.deleteButtonText}>{deleting ? 'Deleting...' : 'Delete Account'}</Text>
       </Pressable>
     </View>
   );
 }
 
-function Input({ label, value, onChangeText, secureTextEntry }: any) {
+function Input({
+  label,
+  value,
+  onChangeText,
+  secureTextEntry,
+  autoCapitalize,
+  keyboardType,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  secureTextEntry?: boolean;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'number-pad';
+}) {
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -364,32 +444,10 @@ function Input({ label, value, onChangeText, secureTextEntry }: any) {
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={secureTextEntry}
-        placeholderTextColor="#555"
+        autoCapitalize={autoCapitalize}
+        keyboardType={keyboardType}
+        placeholderTextColor="#647099"
       />
-    </View>
-  );
-}
-
-function Select({ label, value, options, onChange }: any) {
-  return (
-    <View style={styles.fieldGroup}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.select}>
-        <Text style={styles.selectText}>{options.find((o: any) => String(o.id) === value)?.name || 'Select...'}</Text>
-        <View style={styles.selectDropdown}>
-          {options.map((option: any) => (
-            <Pressable
-              key={option.id}
-              style={[styles.selectOption, String(option.id) === value && styles.selectOptionSelected]}
-              onPress={() => onChange(String(option.id))}
-            >
-              <Text style={String(option.id) === value ? styles.selectOptionTextSelected : styles.selectOptionText}>
-                {option.name}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
     </View>
   );
 }
@@ -397,174 +455,184 @@ function Select({ label, value, options, onChange }: any) {
 const styles = StyleSheet.create({
   root: {
     padding: 18,
-    gap: 12,
-    paddingBottom: 30,
+    gap: 14,
+    paddingBottom: 32,
   },
   centered: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
+    backgroundColor: palette.background,
+  },
+  loadingText: {
+    color: palette.textMuted,
+    fontWeight: '700',
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#32457b',
+    backgroundColor: '#101a39',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  backButtonText: {
+    color: '#d9e5ff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  headerCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#263661',
+    backgroundColor: '#0c1430',
+    padding: 16,
+    gap: 5,
+  },
+  eyebrow: {
+    color: palette.accentSoft,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
   title: {
     color: palette.text,
     fontSize: 30,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   subtitle: {
     color: palette.textMuted,
     fontSize: 14,
-    marginBottom: 6,
+    lineHeight: 20,
   },
   errorText: {
     color: palette.danger,
     fontSize: 13,
-    marginBottom: 12,
   },
-
-  tabs: {
+  sectionTabs: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 12,
   },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#1a1f3a',
-    alignItems: 'center',
+  sectionTab: {
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#2a3a67',
-  },
-  tabActive: {
-    backgroundColor: palette.accent,
-    borderColor: palette.accent,
-  },
-  tabText: {
-    color: palette.textMuted,
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
-
-  section: {
-    gap: 12,
-    paddingBottom: 12,
-  },
-  sectionTitle: {
-    color: palette.text,
-    fontWeight: '800',
-    fontSize: 18,
-    marginTop: 6,
-  },
-
-  fieldGroup: {
-    gap: 6,
-  },
-  fieldLabel: {
-    color: palette.textMuted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  input: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2a3a67',
-    backgroundColor: '#0f1520',
-    color: palette.text,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-
-  select: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2a3a67',
-    backgroundColor: '#0f1520',
-    overflow: 'hidden',
-  },
-  selectText: {
-    color: palette.text,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  selectDropdown: {
-    borderTopWidth: 1,
-    borderTopColor: '#1d2b54',
-  },
-  selectOption: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1d2b54',
-  },
-  selectOptionSelected: {
-    backgroundColor: '#1a1f3a',
-  },
-  selectOptionText: {
-    color: palette.textMuted,
-  },
-  selectOptionTextSelected: {
-    color: palette.accent,
-    fontWeight: '600',
-  },
-
-  button: {
-    borderRadius: 12,
-    backgroundColor: palette.accent,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-
-  deleteButton: {
-    borderRadius: 12,
-    backgroundColor: '#dc2626',
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 6,
-  },
-  deleteButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
-  },
-
-  smallButton: {
-    borderRadius: 8,
-    backgroundColor: palette.accent,
-    paddingHorizontal: 12,
+    borderColor: '#32457b',
+    backgroundColor: '#121d3f',
+    paddingHorizontal: 13,
     paddingVertical: 8,
   },
-  smallButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+  sectionTabActive: {
+    backgroundColor: '#f4f7ff',
+    borderColor: '#f4f7ff',
+  },
+  sectionTabText: {
+    color: '#d6e1ff',
+    fontWeight: '800',
     fontSize: 12,
   },
-
+  sectionTabTextActive: {
+    color: '#08112d',
+  },
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#263661',
+    backgroundColor: palette.panel,
+    padding: 15,
+    gap: 12,
+  },
+  cardTitle: {
+    color: palette.text,
+    fontWeight: '900',
+    fontSize: 19,
+  },
+  cardCopy: {
+    color: palette.textMuted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  twoColumn: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  fieldGroup: {
+    flex: 1,
+    gap: 7,
+  },
+  fieldLabel: {
+    color: '#d2ddff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  input: {
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#2f437b',
+    backgroundColor: '#0f152f',
+    color: palette.text,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    fontSize: 14,
+  },
+  selectionSummary: {
+    color: palette.textMuted,
+    fontSize: 12,
+  },
+  optionWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionPill: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#36497f',
+    backgroundColor: '#111b3d',
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  optionPillSelected: {
+    backgroundColor: palette.accent,
+    borderColor: '#bca7ff',
+  },
+  optionPillText: {
+    color: '#c7d3ff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  optionPillTextSelected: {
+    color: '#fff',
+  },
+  primaryButton: {
+    borderRadius: 14,
+    backgroundColor: palette.accent,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 15,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
   blockedUserRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: '#2a3a67',
-    backgroundColor: '#0f1520',
+    backgroundColor: '#0f152f',
     padding: 12,
     gap: 12,
   },
   blockedUserName: {
     color: palette.text,
-    fontWeight: '600',
+    fontWeight: '800',
     fontSize: 14,
   },
   blockedUserMeta: {
@@ -572,47 +640,73 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-
+  smallButton: {
+    borderRadius: 10,
+    backgroundColor: palette.accent,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  smallButtonText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  warningText: {
+    color: '#fca5a5',
+    fontSize: 13,
+    lineHeight: 19,
+  },
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
-  checkbox: {
-    fontSize: 18,
+  checkboxBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#5d6fa8',
+    backgroundColor: '#0f152f',
+  },
+  checkboxBoxChecked: {
+    backgroundColor: palette.accent,
+    borderColor: palette.accent,
   },
   checkboxLabel: {
-    color: palette.text,
-    fontSize: 14,
     flex: 1,
-  },
-
-  warningText: {
-    color: '#fca5a5',
+    color: palette.text,
     fontSize: 13,
-    marginBottom: 12,
     lineHeight: 18,
   },
-
+  deleteButton: {
+    borderRadius: 14,
+    backgroundColor: '#dc2626',
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 15,
+  },
   emptyText: {
     color: palette.textMuted,
-    fontSize: 14,
-    fontStyle: 'italic',
+    fontSize: 13,
+    lineHeight: 18,
   },
-
   logoutButton: {
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: '#3a1220',
     borderWidth: 1,
     borderColor: '#7f2534',
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 12,
   },
   logoutButtonText: {
     color: '#fecdd3',
-    fontWeight: '700',
-    fontSize: 16,
+    fontWeight: '900',
+    fontSize: 15,
   },
 });

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,7 +18,7 @@ import {
   updateAdminReportStatus,
   updateAdminUserRole,
 } from '../../api/appApi';
-import { buildMediaUrl } from '../../api/client';
+import { RemoteImage } from '../../components/RemoteImage';
 import { AdminOverview, AdminReport, AdminReportContext, AdminUser } from '../../types/app';
 import { palette } from '../../theme/palette';
 
@@ -279,7 +278,13 @@ export function AdminScreen() {
                     {context.reportedUser.photos.length > 0 ? (
                       <ScrollView horizontal contentContainerStyle={styles.photoRow}>
                         {context.reportedUser.photos.map((photo, idx) => (
-                          <Image key={`${r.id}-photo-${idx}`} source={{ uri: buildMediaUrl(photo) }} style={styles.reportPhoto} />
+                          <RemoteImage
+                            key={`${r.id}-photo-${idx}`}
+                            uri={photo}
+                            style={styles.reportPhoto}
+                            fallbackStyle={styles.reportPhoto}
+                            fallbackLabel="Photo"
+                          />
                         ))}
                       </ScrollView>
                     ) : null}

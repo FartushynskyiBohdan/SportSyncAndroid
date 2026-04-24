@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getMyProfile } from '../../api/appApi';
-import { buildMediaUrl } from '../../api/client';
+import { RemoteImage } from '../../components/RemoteImage';
+import { useAuth } from '../../context/AuthContext';
 import { MyProfile } from '../../types/app';
 import { palette } from '../../theme/palette';
 
 const SCREEN_W = Dimensions.get('window').width;
 
-export function ProfileScreen({ onEditProfile }: { onEditProfile?: () => void }) {
+export function ProfileScreen({
+  onEditProfile,
+  onOpenSettings,
+}: {
+  onEditProfile?: () => void;
+  onOpenSettings?: () => void;
+}) {
+  const { logout } = useAuth();
   const [profile, setProfile] = useState<MyProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -51,13 +59,12 @@ export function ProfileScreen({ onEditProfile }: { onEditProfile?: () => void })
     <ScrollView contentContainerStyle={styles.root} showsVerticalScrollIndicator={false}>
       {/* ── Hero photo ── */}
       <View style={styles.heroWrap}>
-        {currentPhoto ? (
-          <Image source={{ uri: buildMediaUrl(currentPhoto) }} style={styles.heroPhoto} />
-        ) : (
-          <View style={[styles.heroPhoto, styles.heroFallback]}>
-            <Text style={styles.heroFallbackText}>{profile.name?.[0] ?? '?'}</Text>
-          </View>
-        )}
+        <RemoteImage
+          uri={currentPhoto}
+          style={styles.heroPhoto}
+          fallbackStyle={styles.heroFallback}
+          fallbackLabel={profile.name}
+        />
 
         {/* Tap zones for cycling photos */}
         {photos.length > 1 && (
@@ -93,12 +100,28 @@ export function ProfileScreen({ onEditProfile }: { onEditProfile?: () => void })
       <View style={styles.panel}>
         {onEditProfile ? (
           <Pressable style={styles.editButton} onPress={onEditProfile}>
-            <Text style={styles.editButtonText}>✏️ Edit Profile</Text>
+            <Text style={styles.editButtonText}>Edit Profile & Photos</Text>
           </Pressable>
         ) : null}
+        {onOpenSettings ? (
+          <Pressable style={styles.settingsButton} onPress={onOpenSettings}>
+            <Text style={styles.settingsButtonText}>Settings</Text>
+          </Pressable>
+        ) : null}
+        <Pressable
+          style={styles.logoutButton}
+          onPress={() => {
+            Alert.alert('Log out?', 'You can sign back in at any time.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Log Out', style: 'destructive', onPress: () => void logout() },
+            ]);
+          }}
+        >
+          <Text style={styles.logoutButtonText}>Log Out</Text>
+        </Pressable>
         {profile.goal ? (
           <View style={styles.goalPill}>
-            <Text style={styles.goalText}>🎯 {profile.goal}</Text>
+            <Text style={styles.goalText}>Goal: {profile.goal}</Text>
           </View>
         ) : null}
         <Text style={styles.bio}>{profile.bio || 'No bio yet.'}</Text>
@@ -236,6 +259,34 @@ const styles = StyleSheet.create({
   },
   editButtonText: {
     color: '#d9e5ff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  settingsButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#101a39',
+    borderWidth: 1,
+    borderColor: '#32457b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  settingsButtonText: {
+    color: '#d9e5ff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  logoutButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    backgroundColor: '#3a1220',
+    borderWidth: 1,
+    borderColor: '#7f2534',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  logoutButtonText: {
+    color: '#fecdd3',
     fontSize: 12,
     fontWeight: '700',
   },

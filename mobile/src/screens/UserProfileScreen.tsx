@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -13,7 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import { getUserProfile, blockUser, unblockUser, getComplaintTypes, reportUser } from '../api/appApi';
-import { buildMediaUrl } from '../api/client';
+import { RemoteImage } from '../components/RemoteImage';
 import { ComplaintType, UserProfile } from '../types/app';
 import { palette } from '../theme/palette';
 
@@ -164,13 +163,12 @@ export function UserProfileScreen({ userId, onGoBack, onOpenMessages }: UserProf
 
       {/* ── Hero photo ── */}
       <View style={styles.heroWrap}>
-        {currentPhoto ? (
-          <Image source={{ uri: buildMediaUrl(currentPhoto) }} style={styles.heroPhoto} />
-        ) : (
-          <View style={[styles.heroPhoto, styles.heroFallback]}>
-            <Text style={styles.heroFallbackText}>{profile.name?.[0] ?? '?'}</Text>
-          </View>
-        )}
+        <RemoteImage
+          uri={currentPhoto}
+          style={styles.heroPhoto}
+          fallbackStyle={styles.heroFallback}
+          fallbackLabel={profile.name}
+        />
 
         {/* Tap zones for cycling photos */}
         {photos.length > 1 && (

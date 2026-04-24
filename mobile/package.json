@@ -5,6 +5,10 @@
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
+    "start:lan": "expo start --lan -c",
+    "start:localhost": "expo start --localhost -c",
+    "start:tunnel": "expo start --tunnel -c",
+    "build:apk": "eas build --platform android --profile submission",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web"
@@ -16,6 +20,7 @@
     "@react-navigation/native-stack": "^6.11.0",
     "axios": "^1.7.7",
     "expo": "~54.0.0",
+    "expo-constants": "~18.0.13",
     "expo-image-picker": "~17.0.10",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",

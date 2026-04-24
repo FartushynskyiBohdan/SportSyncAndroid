@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -24,7 +23,7 @@ import {
   updateProfileGoal,
   uploadProfilePhotos,
 } from '../api/appApi';
-import { buildMediaUrl } from '../api/client';
+import { RemoteImage } from '../components/RemoteImage';
 import { OnboardingSportInput, OptionItem, ProfileEditPhoto } from '../types/app';
 import { palette } from '../theme/palette';
 
@@ -279,7 +278,12 @@ export function ProfileEditScreen({ onGoBack }: ProfileEditScreenProps) {
         <View style={styles.photoGrid}>
           {sortedPhotos.map((photo, index) => (
             <View key={photo.photo_id} style={styles.photoCard}>
-              <Image source={{ uri: buildMediaUrl(photo.photo_url) }} style={styles.photoThumb} />
+              <RemoteImage
+                uri={photo.photo_url}
+                style={styles.photoThumb}
+                fallbackStyle={styles.photoThumb}
+                fallbackLabel="Photo"
+              />
               <View style={styles.photoActions}>
                 <Pressable style={styles.miniBtn} onPress={() => movePhoto(index, -1)}>
                   <Text style={styles.miniBtnText}>←</Text>

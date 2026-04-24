@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
-  Image,
   Modal,
   PanResponder,
   Pressable,
@@ -11,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { getDiscover, likeUser, passUser } from '../../api/appApi';
-import { buildMediaUrl } from '../../api/client';
+import { RemoteImage } from '../../components/RemoteImage';
 import { DiscoverProfile } from '../../types/app';
 import { palette } from '../../theme/palette';
 
@@ -162,11 +161,11 @@ export function DiscoverScreen({
   useEffect(() => { loadDiscover(); }, []);
 
   const photoUrl = current?.photos && current.photos.length > photoIndex
-    ? buildMediaUrl(current.photos[photoIndex])
+    ? current.photos[photoIndex]
     : current?.photos?.[0]
-    ? buildMediaUrl(current.photos[0])
+    ? current.photos[0]
     : current?.image
-    ? buildMediaUrl(current.image)
+    ? current.image
     : '';
 
   if (loading) {
@@ -228,11 +227,12 @@ export function DiscoverScreen({
               <Text style={styles.stampTextNope}>NOPE ✕</Text>
             </Animated.View>
 
-            {photoUrl ? (
-              <Image source={{ uri: photoUrl }} style={styles.photo} />
-            ) : (
-              <View style={styles.photoFallback} />
-            )}
+            <RemoteImage
+              uri={photoUrl}
+              style={styles.photo}
+              fallbackStyle={styles.photoFallback}
+              fallbackLabel={current.name}
+            />
 
             {/* Photo carousel dots */}
             {current.photos && current.photos.length > 1 && (

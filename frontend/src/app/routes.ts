@@ -15,6 +15,8 @@ import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
 import { SuspendedAccount } from "./pages/SuspendedAccount";
 import { DesignSystem } from "./pages/DesignSystem";
+import { PrototypeRedesign } from "./pages/PrototypeRedesign";
+import { PrototypeMobileDemo } from "./pages/PrototypeMobileDemo";
 import { OnboardingProfile } from "./pages/onboarding/OnboardingProfile";
 import { OnboardingSports } from "./pages/onboarding/OnboardingSports";
 import { OnboardingPhotos } from "./pages/onboarding/OnboardingPhotos";
@@ -56,6 +58,14 @@ export const router = createBrowserRouter([
   {
     path: "/design-system",
     Component: DesignSystem,
+  },
+  {
+    path: "/prototype-redesign",
+    Component: PrototypeRedesign,
+  },
+  {
+    path: "/prototype-mobile-demo",
+    Component: PrototypeMobileDemo,
   },
 
   // Auth required — onboarding pages

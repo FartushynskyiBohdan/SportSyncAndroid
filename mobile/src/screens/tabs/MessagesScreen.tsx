@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,9 +11,16 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { getConversations, getThread, sendMessage } from '../../api/appApi';
-import { buildMediaUrl } from '../../api/client';
-import { ConversationItem, MessageThread } from '../../types/app';
+import {
+  clearConversation,
+  deleteMessage,
+  editMessage,
+  getConversations,
+  getThread,
+  sendMessage,
+} from '../../api/appApi';
+import { RemoteImage } from '../../components/RemoteImage';
+import { ChatMessage, ConversationItem, MessageThread } from '../../types/app';
 import { useAuth } from '../../context/AuthContext';
 import { palette } from '../../theme/palette';
 
@@ -26,6 +33,8 @@ export function MessagesScreen({ initialMatchId }: { initialMatchId?: number }) 
   const [thread, setThread] = useState<MessageThread | null>(null);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
+  const [messageActionId, setMessageActionId] = useState<number | null>(null);
   const threadRef = useRef<FlatList>(null);
 
   async function loadConversations() {
@@ -49,10 +58,18 @@ export function MessagesScreen({ initialMatchId }: { initialMatchId?: number }) 
   }, []);
 
   useEffect(() => {
+    if (initialMatchId) {
+      setActiveMatchId(initialMatchId);
+    }
+  }, [initialMatchId]);
+
+  useEffect(() => {
     if (!activeMatchId) {
       setThread(null);
       return;
     }
+    setDraft('');
+    setEditingMessageId(null);
     (async () => {
       try {
         const data = await getThread(activeMatchId);
@@ -63,19 +80,132 @@ export function MessagesScreen({ initialMatchId }: { initialMatchId?: number }) 
     })();
   }, [activeMatchId]);
 
-  async function onSend() {
+  async function onSubmitDraft() {
     if (!activeMatchId || !draft.trim() || sending) return;
     setSending(true);
     try {
+      if (editingMessageId) {
+        const updated = await editMessage(activeMatchId, editingMessageId, draft.trim());
+        setThread((prev) => (
+          prev
+            ? { ...prev, messages: prev.messages.map((message) => (message.id === updated.id ? updated : message)) }
+            : prev
+        ));
+        setEditingMessageId(null);
+        setDraft('');
+        await loadConversations();
+        return;
+      }
+
       const message = await sendMessage(activeMatchId, draft.trim());
       setThread((prev) => (prev ? { ...prev, messages: [...prev.messages, message] } : prev));
       setDraft('');
       await loadConversations();
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to send message.');
+      setError(getMessageActionError(err, 'Failed to save message.'));
     } finally {
       setSending(false);
     }
+  }
+
+  function cancelEdit() {
+    setEditingMessageId(null);
+    setDraft('');
+  }
+
+  function beginEditMessage(message: ChatMessage) {
+    setEditingMessageId(message.id);
+    setDraft(message.text);
+  }
+
+  function confirmDeleteMessage(messageId: number) {
+    if (!activeMatchId) return;
+
+    Alert.alert('Delete message?', 'This removes your message from the conversation.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          setMessageActionId(messageId);
+          try {
+            await deleteMessage(activeMatchId, messageId);
+            setThread((prev) => (
+              prev ? { ...prev, messages: prev.messages.filter((message) => message.id !== messageId) } : prev
+            ));
+            if (editingMessageId === messageId) {
+              cancelEdit();
+            }
+            await loadConversations();
+          } catch (err: any) {
+            Alert.alert('Error', getMessageActionError(err, 'Failed to delete message.'));
+          } finally {
+            setMessageActionId(null);
+          }
+        },
+      },
+    ]);
+  }
+
+  function openMessageMenu(message: ChatMessage) {
+    if (message.senderId !== user?.id) {
+      return;
+    }
+
+    Alert.alert('Message options', 'Choose what to do with this message.', [
+      { text: 'Edit', onPress: () => beginEditMessage(message) },
+      { text: 'Delete', style: 'destructive', onPress: () => confirmDeleteMessage(message.id) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  function confirmClearChat() {
+    if (!activeMatchId) return;
+
+    Alert.alert('Clear chat?', 'This removes the message history for this match.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: async () => {
+          setSending(true);
+          try {
+            await clearConversation(activeMatchId);
+            setThread((prev) => (prev ? { ...prev, messages: [] } : prev));
+            cancelEdit();
+            await loadConversations();
+          } catch (err: any) {
+            Alert.alert('Error', getMessageActionError(err, 'Failed to clear chat.'));
+          } finally {
+            setSending(false);
+          }
+        },
+      },
+    ]);
+  }
+
+  function openChatMenu() {
+    if (!activeConversation) return;
+
+    Alert.alert(activeConversation.user.name, 'Chat options', [
+      { text: 'Clear Chat', style: 'destructive', onPress: confirmClearChat },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  function getMessageActionError(err: any, fallback: string) {
+    const status = err?.response?.status;
+    const serverError = err?.response?.data?.error;
+    const htmlError = typeof err?.response?.data === 'string' ? err.response.data : '';
+
+    if (status === 404 && htmlError.includes('Cannot PUT')) {
+      return 'Message editing needs the updated backend deployed to the live API.';
+    }
+    if (status === 404 && htmlError.includes('Cannot DELETE')) {
+      return 'Message delete/clear needs the updated backend deployed to the live API.';
+    }
+
+    return serverError || fallback;
   }
 
   const activeConversation = useMemo(
@@ -114,12 +244,19 @@ export function MessagesScreen({ initialMatchId }: { initialMatchId?: number }) 
         <Text style={styles.headerTitle}>
           {activeConversation ? activeConversation.user.name : 'Messages'}
         </Text>
-        {activeConversation && (
-          <View style={styles.headerStatus}>
-            <View style={[styles.statusDot, activeConversation.user.isOnline ? styles.online : styles.offline]} />
-            <Text style={styles.statusText}>{activeConversation.user.isOnline ? 'Online' : 'Offline'}</Text>
-          </View>
-        )}
+        <View style={styles.headerActions}>
+          {activeConversation && (
+            <View style={styles.headerStatus}>
+              <View style={[styles.statusDot, activeConversation.user.isOnline ? styles.online : styles.offline]} />
+              <Text style={styles.statusText}>{activeConversation.user.isOnline ? 'Online' : 'Offline'}</Text>
+            </View>
+          )}
+          {activeConversation ? (
+            <Pressable style={styles.chatMenuButton} onPress={openChatMenu}>
+              <Text style={styles.chatMenuButtonText}>...</Text>
+            </Pressable>
+          ) : null}
+        </View>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -141,13 +278,12 @@ export function MessagesScreen({ initialMatchId }: { initialMatchId?: number }) 
                   android_ripple={{ color: '#1f3068' }}
                 >
                   <View style={styles.avatarWrap}>
-                    {item.user.image ? (
-                      <Image source={{ uri: buildMediaUrl(item.user.image) }} style={styles.avatar} />
-                    ) : (
-                      <View style={[styles.avatar, styles.avatarFallback]}>
-                        <Text style={styles.avatarInitials}>{initials}</Text>
-                      </View>
-                    )}
+                    <RemoteImage
+                      uri={item.user.image}
+                      style={styles.avatar}
+                      fallbackStyle={styles.avatarFallback}
+                      fallbackLabel={initials}
+                    />
                     {item.user.isOnline && <View style={styles.onlineDot} />}
                   </View>
                   <View style={styles.contactInfo}>
@@ -181,49 +317,71 @@ export function MessagesScreen({ initialMatchId }: { initialMatchId?: number }) 
                 contentContainerStyle={styles.messages}
                 onContentSizeChange={() => threadRef.current?.scrollToEnd({ animated: true })}
                 showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.noMessagesBox}>
+                    <Text style={styles.noMessagesTitle}>No messages here yet</Text>
+                    <Text style={styles.noMessagesCopy}>Send the first message or pick another match.</Text>
+                  </View>
+                }
                 renderItem={({ item }) => {
                   const mine = item.senderId === user?.id;
                   return (
                     <View style={[styles.row, mine ? styles.rowMine : styles.rowTheirs]}>
-                      {!mine && activeConversation.user.image ? (
-                        <Image
-                          source={{ uri: buildMediaUrl(activeConversation.user.image) }}
+                      {!mine ? (
+                        <RemoteImage
+                          uri={activeConversation.user.image}
                           style={styles.bubbleAvatar}
+                          fallbackStyle={styles.avatarFallback}
+                          fallbackLabel={activeConversation.user.name}
                         />
-                      ) : !mine ? (
-                        <View style={[styles.bubbleAvatar, styles.avatarFallback]}>
-                          <Text style={styles.bubbleAvatarInitials}>
-                            {activeConversation.user.name.slice(0, 1)}
-                          </Text>
-                        </View>
                       ) : null}
-                      <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
+                      <Pressable
+                        style={[
+                          styles.bubble,
+                          mine ? styles.mine : styles.theirs,
+                          messageActionId === item.id && styles.bubbleBusy,
+                        ]}
+                        onLongPress={() => openMessageMenu(item)}
+                        delayLongPress={260}
+                      >
                         <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{item.text}</Text>
-                      </View>
+                      </Pressable>
                     </View>
                   );
                 }}
               />
+
+              {editingMessageId ? (
+                <View style={styles.editingBanner}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.editingTitle}>Editing message</Text>
+                    <Text style={styles.editingCopy}>Long-press your messages to edit or delete them.</Text>
+                  </View>
+                  <Pressable style={styles.cancelEditButton} onPress={cancelEdit}>
+                    <Text style={styles.cancelEditText}>Cancel</Text>
+                  </Pressable>
+                </View>
+              ) : null}
 
               <View style={styles.composeRow}>
                 <TextInput
                   style={styles.input}
                   value={draft}
                   onChangeText={setDraft}
-                  placeholder="Message…"
+                  placeholder={editingMessageId ? 'Update message...' : 'Message...'}
                   placeholderTextColor={palette.textMuted}
                   multiline
                   maxLength={1000}
                   returnKeyType="send"
-                  onSubmitEditing={onSend}
+                  onSubmitEditing={onSubmitDraft}
                   blurOnSubmit={false}
                 />
                 <Pressable
                   style={[styles.sendButton, (!draft.trim() || sending) && styles.sendButtonDisabled]}
-                  onPress={onSend}
+                  onPress={onSubmitDraft}
                   disabled={sending || !draft.trim()}
                 >
-                  <Text style={styles.sendText}>{sending ? '…' : '➤'}</Text>
+                  <Text style={styles.sendText}>{sending ? '...' : editingMessageId ? 'Save' : 'Send'}</Text>
                 </Pressable>
               </View>
             </>
@@ -275,6 +433,13 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontSize: 20,
     fontWeight: '800',
+    flex: 1,
+    marginRight: 10,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   headerStatus: {
     flexDirection: 'row',
@@ -291,6 +456,22 @@ const styles = StyleSheet.create({
   statusText: {
     color: palette.textMuted,
     fontSize: 12,
+  },
+  chatMenuButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#304372',
+    backgroundColor: '#101a39',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatMenuButtonText: {
+    color: '#d9e5ff',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 16,
   },
   error: {
     color: palette.danger,
@@ -395,6 +576,27 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 6,
     paddingBottom: 4,
+    flexGrow: 1,
+  },
+  noMessagesBox: {
+    flex: 1,
+    minHeight: 260,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  noMessagesTitle: {
+    color: palette.text,
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  noMessagesCopy: {
+    color: palette.textMuted,
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 18,
+    textAlign: 'center',
   },
   row: {
     flexDirection: 'row',
@@ -424,6 +626,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  bubbleBusy: {
+    opacity: 0.5,
+  },
   mine: {
     backgroundColor: palette.accent,
     borderBottomRightRadius: 4,
@@ -439,6 +644,42 @@ const styles = StyleSheet.create({
   },
   bubbleTextMine: {
     color: '#fff',
+  },
+  editingBanner: {
+    marginHorizontal: 10,
+    marginBottom: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#3c5189',
+    backgroundColor: '#101a39',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  editingTitle: {
+    color: palette.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  editingCopy: {
+    color: palette.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  cancelEditButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#7f2534',
+    backgroundColor: '#3a1220',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  cancelEditText: {
+    color: '#fecdd3',
+    fontSize: 12,
+    fontWeight: '900',
   },
 
   composeRow: {
@@ -463,12 +704,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sendButton: {
-    width: 40,
+    minWidth: 58,
     height: 40,
     borderRadius: 20,
     backgroundColor: palette.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 12,
   },
   sendButtonDisabled: {
     backgroundColor: '#2a3a6a',
@@ -476,7 +718,7 @@ const styles = StyleSheet.create({
   sendText: {
     color: '#fff',
     fontWeight: '800',
-    fontSize: 16,
+    fontSize: 13,
   },
 });
 

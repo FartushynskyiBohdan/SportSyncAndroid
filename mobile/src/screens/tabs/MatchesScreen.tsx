@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getMatches } from '../../api/appApi';
-import { buildMediaUrl } from '../../api/client';
+import { RemoteImage } from '../../components/RemoteImage';
 import { MatchItem } from '../../types/app';
 import { palette } from '../../theme/palette';
 
@@ -60,13 +60,12 @@ export function MatchesScreen({ onOpenMessages, onViewUser }: { onOpenMessages?:
             android_ripple={{ color: '#ffffff10', borderless: false }}
           >
             <View style={styles.avatarWrap}>
-              {m.image ? (
-                <Image source={{ uri: buildMediaUrl(m.image) }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Text style={styles.avatarInitial}>{m.name?.[0] ?? '?'}</Text>
-                </View>
-              )}
+              <RemoteImage
+                uri={m.image}
+                style={styles.avatar}
+                fallbackStyle={styles.avatarFallback}
+                fallbackLabel={m.name}
+              />
               {m.isOnline && <View style={styles.onlineDot} />}
             </View>
 

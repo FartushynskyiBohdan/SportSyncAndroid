@@ -1,6 +1,8 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from 'react';
 import { AxiosError } from 'axios';
 import { api, withToken } from '../api/client';
+import { DEMO_MODE } from '../config/demo';
+import { demoLogin, demoRegister } from '../demo/demoApi';
 import { clearSession, persistSession, persistSuspension, persistUser, readSession } from '../storage/session';
 import { LoginSuccess, SuspensionNotice, User } from '../types/auth';
 
@@ -37,8 +39,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!token || DEMO_MODE) return;
+
+    async function pingPresence() {
+      try {
+        await api.get('/api/auth/presence/ping');
+      } catch {
+        // Presence is best-effort; normal API calls still refresh last_active.
+      }
+    }
+
+    void pingPresence();
+    const timer = setInterval(() => void pingPresence(), 60000);
+    return () => clearInterval(timer);
+  }, [token]);
+
   async function login(email: string, password: string) {
     setError('');
+    if (DEMO_MODE) {
+      const data = await demoLogin(email);
+      setToken(data.token);
+      setUser(data.user);
+      setSuspendedNotice(null);
+      withToken(data.token);
+      await persistSession(data.token, data.user);
+      return;
+    }
     try {
       const { data } = await api.post<LoginSuccess>('/api/auth/login', { email, password });
       setToken(data.token);
@@ -74,6 +101,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function register(email: string, password: string): Promise<string | null> {
+    if (DEMO_MODE) {
+      const data = await demoRegister(email);
+      setToken(data.token);
+      setUser(data.user);
+      setSuspendedNotice(null);
+      withToken(data.token);
+      await persistSession(data.token, data.user);
+      return null;
+    }
     try {
       const { data } = await api.post<LoginSuccess>('/api/auth/signup', { email, password });
       setToken(data.token);

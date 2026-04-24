@@ -1,38 +1,60 @@
 # SportSync Mobile (Expo)
 
-This is a React Native mobile client scaffold targeting the existing SportSync backend API.
+React Native / Expo Android client for the SportSync backend.
 
 ## Implemented
 
-- Auth login flow against `/api/auth/login`
-- Banned handling (inline error)
-- Suspended handling (dedicated suspended screen)
+- Login, registration, forgot-password, and reset-token flows
+- Suspended and banned account handling
 - Session persistence with AsyncStorage
+- Onboarding, discovery filters, swipe discovery, likes, passes, and match modal
+- Matches, conversations, message threads, and presence heartbeat
+- Own profile, public profile detail, profile editing, photo upload/order/delete
+- Account settings, password change, blocked users, delete account
+- User blocking, reporting, and admin moderation screens
 
-## Quick start
-
-1. Install dependencies:
+## Quick Start
 
 ```bash
 cd mobile
 npm install
-```
-
-2. Start Expo:
-
-```bash
 npm run start
 ```
 
-3. Run on Android emulator/device.
+Then open the app on an Android emulator or device.
 
 ## API URL
 
-Set API URL through environment when needed:
+Set the backend through `.env`:
 
 ```bash
-EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 npm run start
+EXPO_PUBLIC_API_URL=https://apisportsync.xyz
 ```
 
-Defaults to `http://10.0.2.2:3000` for Android emulator.
-For physical device use your machine LAN IP, for example `http://192.168.1.42:3000`.
+For a local Android emulator, use:
+
+```bash
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3000
+```
+
+For a physical phone on the same Wi-Fi, use your computer's LAN IP:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.x.x:3000
+```
+
+## Demo Mode
+
+The app defaults to the real backend. If the backend is unavailable and you only need a polished walkthrough, enable the built-in demo data:
+
+```bash
+EXPO_PUBLIC_DEMO_MODE=true
+```
+
+For coursework submission, build the self-contained APK profile:
+
+```bash
+npx eas-cli build --platform android --profile submission
+```
+
+Any non-admin email signs into the athlete app in demo mode. Use an email containing `admin` to show the admin dashboard.
